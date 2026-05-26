@@ -19,6 +19,7 @@ import {
   Bookmark
 } from 'lucide-react';
 import { specialsData } from './data/specialsData';
+import { supabase, isDbMocked } from './data/supabaseClient';
 
 function App() {
   const [selectedDay, setSelectedDay] = useState('Monday');
@@ -59,6 +60,151 @@ function App() {
       setUserLocation({ lat: 33.7749, lng: -84.3819 });
     }
   }, []);
+
+  // ================= DATABASE PROFILE & AUTH SYNCS =================
+  // Synchronize auth state with Supabase
+  useEffect(() => {
+    if (isDbMocked) return;
+
+    // Load active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchUserProfile(session.user.id);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        fetchUserProfile(session.user.id);
+      } else {
+        // Fall back to clean logged-out state
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (data) {
+        setUser(data);
+      } else {
+        // If profile doesn't exist, create a clean profile record
+        const cleanProfile = {
+          id: userId,
+          name: authName || "New Foodie",
+          avatar_url: `/portraits/profile_${Math.floor(Math.random() * 30) + 1}.png`,
+          archetype: selectedArchetype ? selectedArchetype.title : "Midnight Street Food Rebel",
+          saved_spots: [],
+          free_meetings_left: 1,
+          is_premium: false,
+          premium_since: null
+        };
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert(cleanProfile);
+        
+        if (insertError) throw insertError;
+        setUser(cleanProfile);
+      }
+    } catch (err) {
+      console.error("Error fetching user profile:", err.message);
+    }
+  };
+
+  // Sync mock user state with LocalStorage for high-fidelity offline/dev persistence
+  useEffect(() => {
+    if (isDbMocked) {
+      const cached = localStorage.getItem('atl_mock_profile');
+      if (cached) {
+        try {
+          setUser(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isDbMocked && user) {
+      localStorage.setItem('atl_mock_profile', JSON.stringify(user));
+    }
+  }, [user]);
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    playAudioBeep(523.25, 0.08, 'sine');
+
+    if (isDbMocked) {
+      // High-fidelity local mock auth handler
+      setTimeout(() => {
+        const mockProfile = {
+          name: authName || authEmail.split('@')[0] || "Foodie Explorer",
+          avatar_url: `/portraits/profile_${Math.floor(Math.random() * 30) + 1}.png`,
+          archetype: selectedArchetype ? selectedArchetype.title : "Midnight Street Food Rebel",
+          saved_spots: savedSpecials.map(s => s.name),
+          free_meetings_left: user ? user.free_meetings_left : 1,
+          is_premium: user ? user.is_premium : false,
+          premium_since: user ? user.premium_since : null
+        };
+        setUser(mockProfile);
+        setAuthLoading(false);
+        setShowAuthModal(false);
+        triggerToast(`🎉 Authenticated successfully as ${mockProfile.name}!`);
+        // Play positive sound chime
+        playAudioBeep(523.25, 0.1, 'triangle');
+        setTimeout(() => playAudioBeep(659.25, 0.15, 'triangle'), 100);
+      }, 1000);
+      return;
+    }
+
+    // Real Supabase Auth execution
+    try {
+      if (isSignUpMode) {
+        const { data: { user: authUser }, error } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword
+        });
+        if (error) throw error;
+        triggerToast("🎉 Account created! Logged in successfully.");
+      } else {
+        const { data: { user: authUser }, error } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword
+        });
+        if (error) throw error;
+        triggerToast("🔑 Welcome back! Logged in successfully.");
+      }
+      setShowAuthModal(false);
+    } catch (err) {
+      console.error(err);
+      triggerToast(`❌ Auth error: ${err.message}`);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    playAudioBeep(440, 0.08, 'sine');
+    if (isDbMocked) {
+      setUser(null);
+      localStorage.removeItem('atl_mock_profile');
+      triggerToast("👋 Signed out successfully.");
+      return;
+    }
+    await supabase.auth.signOut();
+    triggerToast("👋 Signed out successfully.");
+  };
 
   // Haversine Distance Formula (miles)
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -124,6 +270,35 @@ function App() {
   const [referralCodeInput, setReferralCodeInput] = useState('');
   const [referralCodeEntered, setReferralCodeEntered] = useState(false);
   const [showReferralVoucher, setShowReferralVoucher] = useState(false);
+
+  // ================= DATABASE, AUTH, AND STRIPE STATES =================
+  const [user, setUser] = useState({
+    name: "Alex Carter",
+    avatar_url: "/portraits/profile_1.png",
+    archetype: "Midnight Street Food Rebel",
+    saved_spots: ["Loca Luna Sangria", "Ecco Midtown Pasta"],
+    free_meetings_left: 1,
+    is_premium: false,
+    premium_since: null
+  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [stripePaymentAmount, setStripePaymentAmount] = useState(20); // default to $20 Premium subscription, can toggle to $5 single date pass
+  const [stripeTargetMatch, setStripeTargetMatch] = useState(null);
+  const [stripePaymentLoading, setStripePaymentLoading] = useState(false);
+  const [showStripeSuccess, setShowStripeSuccess] = useState(false);
+
+  // Stripe card form input fields
+  const [stripeCardNum, setStripeCardNum] = useState('');
+  const [stripeCardExpiry, setStripeCardExpiry] = useState('');
+  const [stripeCardCvc, setStripeCardCvc] = useState('');
+  const [stripeCardZip, setStripeCardZip] = useState('');
 
   // ================= SWIPABLE EXPLORE CARDS STATE =================
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -675,6 +850,46 @@ function App() {
   };
 
   const handleSelectCalendarDate = (dateStr) => {
+    // 1. Intercept with Authentication Gate
+    if (!user) {
+      setShowAuthModal(true);
+      triggerToast("👤 Please create an account or sign in first to book dates!");
+      playAudioBeep(370, 0.08, 'sine');
+      return;
+    }
+
+    // 2. Intercept with Monetization / Stripe Gate
+    if (!user.is_premium && user.free_meetings_left === 0) {
+      setStripeTargetMatch(dateSelectedMatch);
+      setStripePaymentAmount(5); // default to $5 one-off pass, they can upgrade to $20 monthly in the sheet
+      setShowStripeSuccess(false);
+      setShowStripeModal(true);
+      playAudioBeep(523.25, 0.05, 'sine');
+      triggerToast("👑 Access Locked. Single Date Pass or Premium Subscription required!");
+      return;
+    }
+
+    // 3. Deduct Free Monthly Pass if available
+    if (!user.is_premium && user.free_meetings_left > 0) {
+      const updatedProfile = {
+        ...user,
+        free_meetings_left: user.free_meetings_left - 1
+      };
+      setUser(updatedProfile);
+      triggerToast("✨ Unlocked! You've used your 1 monthly free date invite!");
+      
+      // Update background Supabase profile if active
+      if (!isDbMocked) {
+        supabase
+          .from('profiles')
+          .update({ free_meetings_left: user.free_meetings_left - 1 })
+          .eq('id', user.id)
+          .then(({ error }) => {
+            if (error) console.error("Database update error:", error.message);
+          });
+      }
+    }
+
     setDatePickedCalendarDate(dateStr);
     
     // Play visual unlock chime chord!
@@ -1566,6 +1781,366 @@ function App() {
               </div>
             </div>
           )}
+
+          {/* ================= SUPABASE AUTHENTICATION MODAL ================= */}
+          {showAuthModal && (
+            <div className="absolute inset-0 z-[960] bg-slate-950/90 backdrop-blur-md flex items-center justify-center px-4 rounded-[44px] overflow-hidden animate-fade-in animate-slide-up">
+              <div className="w-full max-w-[280px] bg-slate-900 border border-slate-700/60 p-5 rounded-[28px] shadow-2xl flex flex-col items-center relative border-indigo-500/20">
+                {/* Close Button */}
+                <button 
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    playAudioBeep(440, 0.05, 'sine');
+                  }}
+                  className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors cursor-pointer text-xs p-1 rounded-full hover:bg-white/10 z-[962]"
+                >
+                  ✕
+                </button>
+                
+                <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-xl mb-3 shadow-md">
+                  👤
+                </div>
+
+                <h3 className="text-xs font-black text-white font-outfit tracking-wide text-center">
+                  {user ? "Your Foodie Profile" : (isSignUpMode ? "Create Munchi Account" : "Sign In to Munchi")}
+                </h3>
+                <p className="text-[9px] text-slate-400 text-center mt-1 leading-normal max-w-xs px-1 font-medium font-outfit">
+                  {user 
+                    ? "Manage your active subscription, date passes, and saved culinary spots."
+                    : (isSignUpMode 
+                        ? "Save specials, track matching compatibility, and treat matches!" 
+                        : "Welcome back! Connect with foodies and unlock dinner passes.")}
+                </p>
+
+                {user ? (
+                  // Logged-in profile details HUD
+                  <div className="w-full mt-3.5 space-y-3 text-center animate-slide-up">
+                    <div className="w-full bg-slate-950 border border-slate-850/80 p-3 rounded-2xl flex flex-col items-center justify-center relative">
+                      <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-850 overflow-hidden mb-1.5 shadow-sm animate-glow-ring select-none">
+                        <img src={user.avatar_url} alt="User Profile" className="w-full h-full object-cover" />
+                      </div>
+                      <span className="text-[9.5px] font-black text-slate-200 font-outfit">{user.name}</span>
+                      <span className="text-[8px] bg-pink-500/10 text-pink-400 border border-pink-500/15 px-2.5 py-0.5 rounded-full mt-1.5 font-black uppercase tracking-wider leading-none">
+                        {user.is_premium ? "👑 Premium Member" : "🎟️ Free Tier"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-left font-mono text-[8px] text-slate-450 leading-snug px-1 border-t border-slate-850 pt-2 w-full">
+                      <div className="flex justify-between">
+                        <span className="text-slate-550 uppercase">Free Date Invites:</span>
+                        <span className="text-slate-200 font-bold">{user.free_meetings_left} Left</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-550 uppercase">Saved Restaurants:</span>
+                        <span className="text-slate-200 font-bold">{user.saved_spots ? user.saved_spots.length : 0} Spots</span>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        handleSignOut();
+                      }}
+                      className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-[10px] cursor-pointer shadow-md transition-all active:scale-95 shadow-rose-500/10"
+                    >
+                      👋 Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleAuthSubmit} className="w-full space-y-2 mt-3 animate-slide-up">
+                    {isSignUpMode && (
+                      <input 
+                        type="text" 
+                        placeholder="Your Name" 
+                        required
+                        value={authName}
+                        onChange={(e) => setAuthName(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-[9px] text-white focus:outline-none focus:border-indigo-500 font-bold font-outfit"
+                      />
+                    )}
+                    <input 
+                      type="email" 
+                      placeholder="Email Address" 
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-[9px] text-white focus:outline-none focus:border-indigo-500 font-bold font-outfit"
+                    />
+                    <input 
+                      type="password" 
+                      placeholder="Password" 
+                      required
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-855 p-2.5 rounded-xl text-[9px] text-white focus:outline-none focus:border-indigo-500 font-bold font-outfit"
+                    />
+
+                    <button 
+                      type="submit"
+                      disabled={authLoading}
+                      className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white font-black rounded-xl text-[10px] shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 font-outfit uppercase tracking-wider"
+                    >
+                      {authLoading ? (
+                        <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      ) : (
+                        isSignUpMode ? "📝 Register Account" : "🔑 Sign In"
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                {!user && (
+                  <div className="mt-3 flex flex-col items-center gap-1.5 w-full">
+                    <button 
+                      onClick={() => {
+                        setIsSignUpMode(!isSignUpMode);
+                        playAudioBeep(330, 0.05, 'sine');
+                      }}
+                      className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer font-outfit"
+                    >
+                      {isSignUpMode ? "Already have an account? Sign In" : "New to Munchi? Create Account"}
+                    </button>
+
+                    <div className="w-full border-t border-slate-850 my-1"></div>
+
+                    <button 
+                      onClick={() => {
+                        // Fast demo bypass login trigger
+                        setAuthLoading(true);
+                        playAudioBeep(523.25, 0.08, 'sine');
+                        setTimeout(() => {
+                          const demoUser = {
+                            name: "Alex Carter",
+                            avatar_url: "/portraits/profile_1.png",
+                            archetype: selectedArchetype ? selectedArchetype.title : "Midnight Street Food Rebel",
+                            saved_spots: ["Loca Luna Sangria", "Ecco Midtown Pasta"],
+                            free_meetings_left: 1,
+                            is_premium: false,
+                            premium_since: null
+                          };
+                          setUser(demoUser);
+                          setAuthLoading(false);
+                          setShowAuthModal(false);
+                          triggerToast("⚡ Logged in instantly as Demo User!");
+                          playAudioBeep(523.25, 0.1, 'triangle');
+                          setTimeout(() => playAudioBeep(659.25, 0.15, 'triangle'), 100);
+                        }, 700);
+                      }}
+                      className="w-full py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold rounded-xl text-[9px] cursor-pointer active:scale-95 transition-all font-outfit"
+                    >
+                      ⚡ Instant Demo Access
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ================= STRIPE PAYMENT MODAL ================= */}
+          {showStripeModal && (
+            <div className="absolute inset-0 z-[960] bg-slate-950/90 backdrop-blur-md flex items-center justify-center px-4 rounded-[44px] overflow-hidden animate-fade-in animate-slide-up">
+              <div className="w-full max-w-[280px] bg-slate-900 border border-slate-700/60 p-5 rounded-[28px] shadow-2xl flex flex-col items-center relative border-indigo-500/20">
+                <button 
+                  onClick={() => {
+                    setShowStripeModal(false);
+                    playAudioBeep(440, 0.05, 'sine');
+                  }}
+                  className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors cursor-pointer text-xs p-1 rounded-full hover:bg-white/10 z-[962]"
+                >
+                  ✕
+                </button>
+
+                {showStripeSuccess ? (
+                  <div className="w-full text-center space-y-4 py-4 animate-scale-up">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mx-auto shadow-lg animate-bounce">
+                      🎉
+                    </div>
+                    <div className="space-y-1.5 leading-none">
+                      <h3 className="text-xs font-black text-white font-outfit">Payment Completed!</h3>
+                      <p className="text-[9.5px] text-slate-450 leading-relaxed font-medium font-outfit mt-1.5">
+                        Thank you! Your dating access has been successfully unlocked. Get ready for your culinary date! 🥂
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowStripeSuccess(false);
+                        setShowStripeModal(false);
+                        playAudioBeep(523.25, 0.08, 'sine');
+                      }}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-[10px] cursor-pointer shadow-md transition-all active:scale-95 shadow-emerald-500/10 font-outfit"
+                    >
+                      🌟 Let's go!
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full flex flex-col text-left">
+                    <div className="text-center space-y-1 mb-3 shrink-0 leading-none">
+                      <span className="text-[8px] font-black text-rose-500 tracking-widest font-outfit uppercase animate-pulse">👑 Munchi Premium VIP 👑</span>
+                      <h3 className="text-[11px] font-black text-white font-outfit leading-tight mt-1.5">Unlock Dating Invite</h3>
+                      <p className="text-[9px] text-slate-450 leading-normal max-w-xs mx-auto mt-1 font-medium font-outfit">
+                        Treat {stripeTargetMatch?.name || "your match"}! Choose how you would like to unlock this date invite:
+                      </p>
+                    </div>
+
+                    {/* Pricing selector options */}
+                    <div className="space-y-2 shrink-0">
+                      {/* Option A: $20 Monthly */}
+                      <button
+                        onClick={() => {
+                          setStripePaymentAmount(20);
+                          playAudioBeep(330, 0.05, 'sine');
+                        }}
+                        className={`w-full text-left p-2.5 rounded-2xl border text-[9px] font-bold font-outfit transition-all duration-300 cursor-pointer flex justify-between items-center ${
+                          stripePaymentAmount === 20
+                            ? 'bg-rose-500/10 border-rose-500 text-rose-450 shadow-md'
+                            : 'bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-800'
+                        }`}
+                      >
+                        <div className="space-y-0.5 leading-none">
+                          <span className="block font-black text-slate-200">👑 Monthly Premium VIP</span>
+                          <span className="block text-[7.5px] text-slate-500 font-medium mt-0.5">Unlimited dating & matching passes</span>
+                        </div>
+                        <span className="font-extrabold text-[10px] shrink-0">$20 / mo</span>
+                      </button>
+
+                      {/* Option B: $5 One-off */}
+                      <button
+                        onClick={() => {
+                          setStripePaymentAmount(5);
+                          playAudioBeep(330, 0.05, 'sine');
+                        }}
+                        className={`w-full text-left p-2.5 rounded-2xl border text-[9px] font-bold font-outfit transition-all duration-300 cursor-pointer flex justify-between items-center ${
+                          stripePaymentAmount === 5
+                            ? 'bg-rose-500/10 border-rose-500 text-rose-450 shadow-md'
+                            : 'bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-800'
+                        }`}
+                      >
+                        <div className="space-y-0.5 leading-none">
+                          <span className="block font-black text-slate-200">🎟️ Single Date Ticket</span>
+                          <span className="block text-[7.5px] text-slate-500 font-medium mt-0.5">Unlock this specific date meetup only</span>
+                        </div>
+                        <span className="font-extrabold text-[10px] shrink-0">$5 / date</span>
+                      </button>
+                    </div>
+
+                    {/* Stripe Card details form */}
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setStripePaymentLoading(true);
+                        playAudioBeep(523.25, 0.08, 'sine');
+
+                        // Luhn Validation or card entry verification mock checkout
+                        setTimeout(() => {
+                          // Deduct payment and upgrade user account tier
+                          setUser(prev => {
+                            if (!prev) return null;
+                            const updated = { ...prev };
+                            if (stripePaymentAmount === 20) {
+                              updated.is_premium = true;
+                              updated.premium_since = new Date().toISOString();
+                            } else {
+                              // One off unlock: does not set permanent premium, but allows date scheduler step to pass!
+                            }
+                            return updated;
+                          });
+
+                          setStripePaymentLoading(false);
+                          setShowStripeSuccess(true);
+                          
+                          // Celebrate with triple chimes
+                          playAudioBeep(523.25, 0.1, 'sine');
+                          setTimeout(() => playAudioBeep(659.25, 0.15, 'sine'), 100);
+                          setTimeout(() => playAudioBeep(783.99, 0.2, 'sine'), 200);
+                          triggerToast(`💳 Stripe successfully charged $${stripePaymentAmount}.00! Date pass unlocked! 🥂`);
+
+                          // Complete actual scheduling action in dateFlowStep!
+                          setDateFlowStep('revealed');
+                          const dateStr = datePickedCalendarDate || "Thursday, May 28, 2026";
+                          setDatePickedCalendarDate(dateStr);
+                          const draft = `🎟️ SPONSORED DATE PASS 🎟️\nHost: You (👤 Foodie Host)\nGuest: ${stripeTargetMatch?.name} (${stripeTargetMatch?.neighborhood})\nVenue: ${dateRestaurant.name} 📍\nDate: ${dateStr}\nStatus: FULLY SPONSORED BY HOST\n\nHey ${stripeTargetMatch?.name}! I saw you on Munchi Date Finder. I just sponsored a date for us for the ${dateRestaurant.day} special! Join me? details: https://atlantaspecials.vercel.app`;
+                          setDateInviteText(draft);
+                        }, 2000);
+                      }} 
+                      className="w-full space-y-2 mt-4"
+                    >
+                      <span className="text-[7.5px] font-black text-slate-550 uppercase tracking-widest block font-mono">💳 Secure Stripe Card Element</span>
+                      
+                      <input 
+                        type="text" 
+                        placeholder="Card Number (e.g. 4242 4242 4242 4242)"
+                        required
+                        maxLength={19}
+                        value={stripeCardNum}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                          const matches = v.match(/\d{4,16}/g);
+                          const match = matches && matches[0] || '';
+                          const parts = [];
+                          for (let i=0, len=match.length; i<len; i+=4) {
+                            parts.push(match.substring(i, i+4));
+                          }
+                          if (parts.length > 0) {
+                            setStripeCardNum(parts.join(' '));
+                          } else {
+                            setStripeCardNum(v);
+                          }
+                        }}
+                        className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-[10px] text-white focus:outline-none focus:border-rose-500 font-mono tracking-wider font-bold"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="MM/YY" 
+                          required
+                          maxLength={5}
+                          value={stripeCardExpiry}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                            if (v.length >= 2) {
+                              setStripeCardExpiry(v.substring(0,2) + '/' + v.substring(2,4));
+                            } else {
+                              setStripeCardExpiry(v);
+                            }
+                          }}
+                          className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-[10px] text-white focus:outline-none focus:border-rose-500 font-mono text-center font-bold"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="CVC" 
+                          required
+                          maxLength={3}
+                          value={stripeCardCvc}
+                          onChange={(e) => setStripeCardCvc(e.target.value.replace(/[^0-9]/gi, ''))}
+                          className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-[10px] text-white focus:outline-none focus:border-rose-500 font-mono text-center font-bold"
+                        />
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="ZIP Code" 
+                        required
+                        maxLength={5}
+                        value={stripeCardZip}
+                        onChange={(e) => setStripeCardZip(e.target.value.replace(/[^0-9]/gi, ''))}
+                        className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-[10px] text-white focus:outline-none focus:border-rose-500 font-mono text-center font-bold"
+                      />
+
+                      <button 
+                        type="submit"
+                        disabled={stripePaymentLoading}
+                        className="w-full py-2.5 mt-2 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-black rounded-xl text-[10.5px] shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 font-outfit uppercase tracking-wider"
+                      >
+                        {stripePaymentLoading ? (
+                          <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        ) : (
+                          `💳 Pay $${stripePaymentAmount}.00 Now`
+                        )}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {/* MunchiDate 4s Video Splash Screen Overlay */}
           {showSplash && (
             <div className="absolute inset-0 z-[1000] bg-black flex flex-col items-center justify-center rounded-[44px] overflow-hidden">
@@ -1757,8 +2332,23 @@ function App() {
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-14 object-contain filter drop-shadow-md" />
                     <span className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase mt-1.5 block text-center">Local Foodie Directory</span>
                   </div>
-                  <div className="absolute right-5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 cursor-pointer hover:bg-indigo-500/20 transition-all duration-300">
-                    <Compass className="w-4.5 h-4.5 animate-pulse" />
+                  {/* User Profile Avatar / Login trigger */}
+                  <div 
+                    onClick={() => {
+                      playAudioBeep(523.25, 0.05, 'sine');
+                      setShowAuthModal(true);
+                      if (user) {
+                        triggerToast(`👤 Foodie: ${user.name} | Tier: ${user.is_premium ? "Premium 👑" : "Free 🎟️"}`);
+                      }
+                    }}
+                    className="absolute right-5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-all select-none shadow-md border-indigo-500/30 bg-indigo-950/20 animate-glow-ring"
+                    title={user ? `${user.name} (View Profile / Logout)` : "Sign In / Register"}
+                  >
+                    {user ? (
+                      <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-indigo-400">👤</span>
+                    )}
                   </div>
                 </div>
 

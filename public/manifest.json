@@ -1,0 +1,97 @@
+{
+  "name": "munchidate.com - Atlanta Food & Drink Specials",
+  "short_name": "munchidate",
+  "description": "Discover the best daily food specials, happy hours, and viral dining deals in Atlanta. Rate places and match with singles who share your taste in food.",
+  "categories": [
+    "food",
+    "lifestyle",
+    "social"
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "window-controls-overlay",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Daily Specials Feed",
+      "short_name": "Specials",
+      "description": "Browse today's food & drink specials in Atlanta",
+      "url": "/",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Active Spots Map",
+      "short_name": "Map",
+      "description": "Explore happy hour spots on the interactive Atlanta map",
+      "url": "/?tab=map",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Explore Date Reels",
+      "short_name": "Explore",
+      "description": "Swipe and rate restaurant spots for dates",
+      "url": "/?tab=explore",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Munchi Matchmaker",
+      "short_name": "Matchmaker",
+      "description": "See your matches and active chat channels",
+      "url": "/?tab=matchmaker",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon-96x96.png?v=10" sizes="96x96" />
+    <link rel="shortcut icon" href="/favicon.ico?v=10" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=10" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    
+    <!-- Open Graph / SEO Preview Meta Tags -->
+    <meta property="og:title" content="munchidate.com - Atlanta Happy Hours & Specials" />
+    <meta property="og:description" content="Discover the best daily food specials, happy hours, and viral dining deals in Atlanta." />
+    <meta property="og:image" content="/og-image.png?v=10" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://munchidate.com" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="munchidate.com - Atlanta Happy Hours & Specials" />
+    <meta name="twitter:description" content="Discover the best daily food specials, happy hours, and viral dining deals in Atlanta." />
+    <meta name="twitter:image" content="/twitter-card.png?v=10" />
+    
+    <!-- PWA Configurations -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- iOS support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="munchidate" />
+    <link rel="apple-touch-icon" href="/icon-192.png?v=10" />
+    
+    <!-- JSON-LD WebApplication Schema for Search Engine AEO/SEO Compliance -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "MunchiDate",
+        "url": "https://munchidate.com",
+        "logo": "https://munchidate.com/icon-512.png",
+        "description": "Discover the best daily food specials, happy hours, and viral dining deals in Atlanta. Rate places and match with singles who share your taste in food.",
+        "applicationCategory": "FoodEstablishmentApplication",
+        "operatingSystem": "All",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
+    
+    <title>munchidate.com - Atlanta Happy Hours & Specials</title>
+  </head>
+  <body class="bg-slate-900 text-slate-100">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((reg) => console.log('Service worker registered successfully:', reg.scope))
+            .catch((err) => console.log('Service worker registration failed:', err));
+        });
+      }
+    </script>
+  </body>
+</html>

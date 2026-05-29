@@ -4099,4 +4099,55 @@ export const specialsData = [
     lng: -84.3942
   }
 
+,
+  // ==================== DALLAS EXPANSION SPOT ====================
+  {
+    day: "Thursday",
+    name: "Terry Black's BBQ",
+    ig: "@terryblacksbbq",
+    address: "3025 Main St, Dallas, TX 75226",
+    neighborhood: "Deep Ellum",
+    specials: "$12 Texas-style beef brisket sandwich + cold Shiner Bock draft pint, served on their outdoor picnic patio (4 PM - 7 PM)",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-roasting-beef-steaks-on-a-charcoal-grill-42232-large.mp4",
+    lat: 32.7845,
+    lng: -96.7865
+  },
+  {
+    day: "Tuesday",
+    name: "Mi Cocina",
+    ig: "@micocina_texas",
+    address: "3699 McKinney Ave, Dallas, TX 75204",
+    neighborhood: "Uptown",
+    specials: "Happy Hour fiesta: $8 Mambo Taxis (frozen margarita swirls) and half-priced select loaded nachos/queso (4 PM - 6 PM)",
+    image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-a-yellow-drink-into-a-glass-40348-large.mp4",
+    lat: 32.8025,
+    lng: -96.8015
+  },
+  // ==================== HOUSTON EXPANSION SPOT ====================
+  {
+    day: "Monday",
+    name: "The Original Ninfa's",
+    ig: "@originalninfas",
+    address: "2704 Navigation Blvd, Houston, TX 77003",
+    neighborhood: "EaDo",
+    specials: "$7 Ninfarita lime margaritas and half-priced wood-grilled fajita taco combos served on the vibrant shaded patio (3:00 PM - 6:00 PM)",
+    image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-a-yellow-drink-into-a-glass-40348-large.mp4",
+    lat: 29.7585,
+    lng: -95.3425
+  },
+  {
+    day: "Wednesday",
+    name: "Anvil Bar & Refuge",
+    ig: "@anvilhouston",
+    address: "1424 Westheimer Rd, Houston, TX 77006",
+    neighborhood: "Montrose",
+    specials: "$9 selected custom craft cocktails from their curated list, plus savory bar board dip pairings (4:00 PM - 6:00 PM)",
+    image: "https://images.unsplash.com/photo-1536935338788-846bb9981813?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-a-yellow-drink-into-a-glass-40348-large.mp4",
+    lat: 29.7445,
+    lng: -95.3912
+  }
 ];

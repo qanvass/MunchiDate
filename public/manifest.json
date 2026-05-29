@@ -1,23 +1,83 @@
 {
+  "id": "/?twa=true",
+  "scope": "/",
   "name": "munchidate.com - Atlanta Food & Drink Specials",
   "short_name": "munchidate",
   "description": "Discover the best daily food specials, happy hours, and viral dining deals in Atlanta. Rate places and match with singles who share your taste in food.",
+  "lang": "en",
+  "dir": "ltr",
+  "iarc_rating_id": "e8372651-381a-45c1-8b7a-9ad59ab3ed75",
   "categories": [
     "food",
     "lifestyle",
     "social"
   ],
-  "start_url": "/",
+  "start_url": "/?twa=true",
   "background_color": "#09090b",
   "theme_color": "#4f46e5",
   "display": "standalone",
   "display_override": [
+    "tabbed",
     "standalone",
     "window-controls-overlay",
     "minimal-ui"
   ],
   "orientation": "portrait",
   "prefer_related_applications": false,
+  "scope_extensions": [
+    {
+      "origin": "*.munchidate.com"
+    },
+    {
+      "origin": "munchidate.com"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/?twa=true",
+      "accept": {
+        "text/plain": [".txt"]
+      }
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+munchi",
+      "url": "/?tab=explore&search=%s&twa=true"
+    }
+  ],
+  "share_target": {
+    "action": "/?twa=true",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "widgets": [
+    {
+      "name": "Today's Specials",
+      "short_name": "Specials",
+      "description": "View today's top dining specials in Atlanta",
+      "tag": "specials_today",
+      "template": "specials_widget",
+      "ms_ac_template": "widgets/specials.json",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
   "icons": [
     {
       "src": "icon-192.png",
@@ -49,7 +109,7 @@
       "name": "Daily Specials Feed",
       "short_name": "Specials",
       "description": "Browse today's food & drink specials in Atlanta",
-      "url": "/",
+      "url": "/?twa=true",
       "icons": [
         {
           "src": "icon-192.png",
@@ -61,7 +121,7 @@
       "name": "Active Spots Map",
       "short_name": "Map",
       "description": "Explore happy hour spots on the interactive Atlanta map",
-      "url": "/?tab=map",
+      "url": "/?tab=map&twa=true",
       "icons": [
         {
           "src": "icon-192.png",
@@ -73,7 +133,7 @@
       "name": "Explore Date Reels",
       "short_name": "Explore",
       "description": "Swipe and rate restaurant spots for dates",
-      "url": "/?tab=explore",
+      "url": "/?tab=explore&twa=true",
       "icons": [
         {
           "src": "icon-192.png",
@@ -85,13 +145,50 @@
       "name": "Munchi Matchmaker",
       "short_name": "Matchmaker",
       "description": "See your matches and active chat channels",
-      "url": "/?tab=matchmaker",
+      "url": "/?tab=matchmaker&twa=true",
       "icons": [
         {
           "src": "icon-192.png",
           "sizes": "192x192"
         }
       ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.munchidate.twa",
+      "id": "com.munchidate.twa"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-1.png",
+      "sizes": "900x1700",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "MunchiDate Specials Feed"
+    },
+    {
+      "src": "screenshot-2.png",
+      "sizes": "900x1700",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Tinder-Style Food Swiper & Matchmaker"
+    },
+    {
+      "src": "screenshot-3.png",
+      "sizes": "900x1700",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Secure Biometric Dating Verification"
+    },
+    {
+      "src": "share-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "MunchiDate Desktop Specials Explorer"
     }
   ]
 }

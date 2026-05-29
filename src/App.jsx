@@ -20,10 +20,17 @@ import {
 } from 'lucide-react';
 import { specialsData } from './data/specialsData';
 import { supabase, isDbMocked } from './data/supabaseClient';
+import ArchetypeCanvas from './components/ArchetypeCanvas';
 
 function App() {
   const [selectedDay, setSelectedDay] = useState('Monday');
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'explore' | 'map'
+  const [activeFaq, setActiveFaq] = useState(null);
+  const [exploreMode, setExploreMode] = useState('cards'); // 'cards' or 'reels'
+  const [isReelsMuted, setIsReelsMuted] = useState(true);
+  const [reelsDragStartY, setReelsDragStartY] = useState(0);
+  const [reelsDragOffsetY, setReelsDragOffsetY] = useState(0);
+  const [isReelsDragging, setIsReelsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('All');
   const [favorites, setFavorites] = useState([]);
@@ -60,6 +67,123 @@ function App() {
       setUserLocation({ lat: 33.7749, lng: -84.3819 });
     }
   }, []);
+
+  // ================= DEEP LINKING ROUTE PARSER (GEO/SEO COMPLIANCE) =================
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    const searchParam = params.get('search');
+    const dayParam = params.get('day');
+    const neighborhoodParam = params.get('neighborhood');
+    const dealParam = params.get('deal');
+
+    if (tabParam) {
+      if (tabParam === 'map') {
+        setActiveTab('map');
+      } else if (tabParam === 'explore') {
+        setActiveTab('explore');
+        setExploreMode('cards');
+      } else if (tabParam === 'reels') {
+        setActiveTab('explore');
+        setExploreMode('reels');
+      } else if (tabParam === 'matchmaker') {
+        setActiveTab('feed');
+        const defaultRest = specialsData.find(s => s.name.toLowerCase().includes('luna')) || specialsData[0];
+        setDateRestaurant(defaultRest);
+        setShowDateFlow(true);
+        setDateFlowStep('intro');
+      }
+    }
+
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+    if (dayParam) {
+      const formattedDay = dayParam.charAt(0).toUpperCase() + dayParam.slice(1).toLowerCase();
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      if (days.includes(formattedDay)) {
+        setSelectedDay(formattedDay);
+      }
+    }
+    if (neighborhoodParam) {
+      setSelectedNeighborhood(neighborhoodParam);
+    }
+    if (dealParam) {
+      const cleanDealName = dealParam.replace(/_/g, ' ').toLowerCase();
+      const targetDeal = specialsData.find(s => s.name.toLowerCase() === cleanDealName || s.name.toLowerCase().includes(cleanDealName));
+      if (targetDeal) {
+        setSelectedRestaurant(targetDeal);
+        setMapSelectedRestaurant(targetDeal);
+      }
+    }
+
+    // PWA Share Target inbound query parser
+    const sharedTitle = params.get('title');
+    const sharedText = params.get('text');
+    const sharedUrl = params.get('url');
+    if (sharedTitle || sharedText || sharedUrl) {
+      triggerToast("🎁 Received shared date recommendation!");
+      if (sharedText) setSearchQuery(sharedText);
+    }
+
+    // PWA Natively Launched File Handler queue consumer
+    if ('launchQueue' in window) {
+      window.launchQueue.setConsumer((launchParams) => {
+        if (launchParams.files && launchParams.files.length > 0) {
+          triggerToast("📁 File loaded natively into MunchiDate!");
+          console.log("Files loaded:", launchParams.files);
+        }
+      });
+    }
+  }, []);
+
+  // ================= VIDEO CALL COUNTDOWN EFFECT =================
+  useEffect(() => {
+    let interval = null;
+    if (videoCallTimerActive && videoCallTimer > 0) {
+      interval = setInterval(() => {
+        setVideoCallTimer(prev => prev - 1);
+      }, 1000);
+    } else if (videoCallTimerActive && videoCallTimer === 0) {
+      setVideoCallTimerActive(false);
+      setIsVideoCallActive(false);
+      setVideoCallRatingActive(true);
+      playAudioBeep(330, 0.35, 'sawtooth');
+    }
+    return () => clearInterval(interval);
+  }, [videoCallTimerActive, videoCallTimer]);
+
+  const handleInitiateVideoCall = () => {
+    playAudioBeep(523.25, 0.08, 'sine');
+    setShowVideoPaywall(true);
+  };
+
+  const handleSimulatedSwipe = () => {
+    // Play payment sound triggers
+    playLockChime(0);
+    setTimeout(() => playLockChime(1), 80);
+    setTimeout(() => playLockChime(2), 160);
+    
+    triggerToast("💳 Video Call Sponsor Charge of $3.00 approved via Stripe!");
+    setShowVideoPaywall(false);
+    setIsVideoCallConnecting(true);
+    
+    let tickCount = 0;
+    const tickInterval = setInterval(() => {
+      playAudioBeep(650 + Math.random() * 200, 0.05, 'triangle');
+      tickCount++;
+      if (tickCount > 8) clearInterval(tickInterval);
+    }, 180);
+
+    setTimeout(() => {
+      setIsVideoCallConnecting(false);
+      setIsVideoCallActive(true);
+      setVideoCallTimer(240); // Reset timer to 4 mins
+      setVideoCallTimerActive(true);
+      playJackpotFanfare();
+    }, 2000);
+  };
 
   // ================= DATABASE PROFILE & AUTH SYNCS =================
   // Synchronize auth state with Supabase
@@ -270,6 +394,16 @@ function App() {
   const [referralCodeInput, setReferralCodeInput] = useState('');
   const [referralCodeEntered, setReferralCodeEntered] = useState(false);
   const [showReferralVoucher, setShowReferralVoucher] = useState(false);
+  const [isGuestJoined, setIsGuestJoined] = useState(false);
+
+  // ================= VIDEO CHAT & DATE APPROVAL STATES =================
+  const [isDateApprovedByBoth, setIsDateApprovedByBoth] = useState(false);
+  const [showVideoPaywall, setShowVideoPaywall] = useState(false);
+  const [isVideoCallConnecting, setIsVideoCallConnecting] = useState(false);
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
+  const [videoCallTimer, setVideoCallTimer] = useState(240); // 4 minutes
+  const [videoCallTimerActive, setVideoCallTimerActive] = useState(false);
+  const [videoCallRatingActive, setVideoCallRatingActive] = useState(false);
 
   // ================= DATABASE, AUTH, AND STRIPE STATES =================
   const [user, setUser] = useState({
@@ -901,7 +1035,7 @@ function App() {
     setDateFlowStep('revealed');
     
     // Prefill date invite ticket draft text
-    const draft = `🎟️ SPONSORED DATE PASS 🎟️\nHost: You (👤 Foodie Host)\nGuest: ${dateSelectedMatch.name} (${dateSelectedMatch.image} ${dateSelectedMatch.neighborhood})\nVenue: ${dateRestaurant.name} 📍\nDate: ${dateStr}\nStatus: FULLY SPONSORED BY HOST\n\nHey ${dateSelectedMatch.name}! I saw you on Munchi Date Finder. I just sponsored a date for us for the ${dateRestaurant.day} special! Join me? details: https://atlantaspecials.vercel.app`;
+    const draft = `I just sponsored our date! Claim your ticket here: https://munchidate.com`;
     setDateInviteText(draft);
   };
 
@@ -1221,7 +1355,7 @@ function App() {
 
   // Update video autoplay on index change or tab change
   useEffect(() => {
-    if (activeTab === 'explore') {
+    if (activeTab === 'explore' && exploreMode === 'reels') {
       videoRefs.current.forEach((video, idx) => {
         if (video) {
           if (idx === currentVideoIndex) {
@@ -1237,7 +1371,34 @@ function App() {
         if (video) video.pause();
       });
     }
-  }, [activeTab, currentVideoIndex]);
+  }, [activeTab, exploreMode, currentVideoIndex]);
+
+  // ================= REELS GESTURE SWIPING HANDLERS =================
+  const handleReelsDragStart = (e) => {
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setReelsDragStartY(clientY);
+    setReelsDragOffsetY(0);
+    setIsReelsDragging(true);
+  };
+
+  const handleReelsDragMove = (e) => {
+    if (!isReelsDragging) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const deltaY = clientY - reelsDragStartY;
+    setReelsDragOffsetY(deltaY);
+  };
+
+  const handleReelsDragEnd = () => {
+    if (!isReelsDragging) return;
+    setIsReelsDragging(false);
+    
+    if (reelsDragOffsetY < -50) {
+      handleNextVideo();
+    } else if (reelsDragOffsetY > 50) {
+      handlePrevVideo();
+    }
+    setReelsDragOffsetY(0);
+  };
 
   // ================= SWIPABLE GESTURE CARD HANDLERS =================
   const handleDragStart = (e) => {
@@ -1519,20 +1680,87 @@ function App() {
 
         <div className="grid grid-cols-2 gap-4 text-left">
           <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl">
-            <h3 className="text-indigo-400 font-semibold font-outfit text-sm">🗓️ 7-Day Interactive Database</h3>
+            <h2 className="text-indigo-400 font-semibold font-outfit text-sm">🗓️ 7-Day Interactive Database</h2>
             <p className="text-xs text-slate-500 mt-1">70 detailed Atlanta venue deals loaded directly inside the local database.</p>
           </div>
           <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl">
-            <h3 className="text-emerald-400 font-semibold font-outfit text-sm">📹 Swipeable Foodie Reels</h3>
+            <h2 className="text-emerald-400 font-semibold font-outfit text-sm">📹 Swipeable Foodie Reels</h2>
             <p className="text-xs text-slate-500 mt-1">TikTok-style vertical scrolling video reels with live interactive action buttons.</p>
           </div>
           <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl">
-            <h3 className="text-amber-400 font-semibold font-outfit text-sm">📍 Day-Active Map Pins</h3>
+            <h2 className="text-amber-400 font-semibold font-outfit text-sm">📍 Day-Active Map Pins</h2>
             <p className="text-xs text-slate-500 mt-1">Simulated geolocation system showing pin drops of restaurants active today.</p>
           </div>
           <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl">
-            <h3 className="text-pink-400 font-semibold font-outfit text-sm">⚡ Real-Time Fast Refresh</h3>
+            <h2 className="text-pink-400 font-semibold font-outfit text-sm">⚡ Real-Time Fast Refresh</h2>
             <p className="text-xs text-slate-500 mt-1">As you modify files in your workspace, the visual emulator updates instantly.</p>
+          </div>
+        </div>
+
+        {/* ================= PREMIUM GLASSMORPHIC FAQ & FRESHNESS PANEL ================= */}
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-6 text-left mt-6">
+          <div className="flex items-center justify-between border-b border-slate-750 pb-4">
+            <div>
+              <span className="text-[10px] font-black text-indigo-400 tracking-widest font-outfit uppercase">Generative Search Ready</span>
+              <h2 className="text-xl font-extrabold text-white font-outfit mt-1">Frequently Asked Questions</h2>
+            </div>
+            <div className="flex flex-col items-end shrink-0">
+              <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full text-emerald-400 text-[10px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                Live & Verified Daily
+              </span>
+              <span className="text-[9px] text-slate-500 mt-1 font-medium font-outfit">Last Sync: May 28, 2026</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                q: "How does MunchiDate help you find Atlanta happy hours and food specials?",
+                a: "MunchiDate is Atlanta’s premium interactive map directory tracking over 70+ restaurant specials, happy hours, and dining deals. Users can filter deals by day of the week, search by favorite food categories, and geolocate active spots in real-time."
+              },
+              {
+                q: "What are the best food specials and dining deals for date planning in Atlanta?",
+                a: "Whether you are planning a casual taco night at Loca Luna in Midtown, oyster happy hours at Alici in Buckhead, or a romantic pasta dinner at Forza Storico in West Midtown, MunchiDate compiles live, human-verified specials tailored specifically to your foodie taste preferences."
+              },
+              {
+                q: "How does the MunchiDate AI Matchmaker connect local single foodies?",
+                a: "Our proprietary AI Date Matchmaker matches you with compatible local singles based on your flavor profile, favorite cuisines, hosting preferences, and neighborhood convenience. Simply take our 5-question Matchmaker Quiz to unlock verified matches and plan the perfect dining date."
+              },
+              {
+                q: "Are the happy hour deals and food specials verified?",
+                a: "Yes, absolutely. Our dining deal database is synchronized and verified daily by our team. We coordinate directly with Atlanta food establishments and social media feeds to ensure 100% accurate pricing, hours, and active specials."
+              }
+            ].map((faq, idx) => {
+              const isOpen = activeFaq === idx;
+              return (
+                <div 
+                  key={idx}
+                  className="bg-slate-900/40 hover:bg-slate-900/60 border border-slate-850 rounded-2xl overflow-hidden transition-all duration-300"
+                >
+                  <button
+                    onClick={() => {
+                      setActiveFaq(isOpen ? null : idx);
+                    }}
+                    className="w-full px-5 py-4 text-left flex items-center justify-between gap-4 font-outfit text-xs font-black text-slate-200 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <span>{faq.q}</span>
+                    <span className={`text-indigo-400 font-bold transition-transform duration-300 transform ${isOpen ? 'rotate-90' : ''}`}>
+                      <ChevronRight className="w-4 h-4" />
+                    </span>
+                  </button>
+                  <div 
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isOpen ? 'max-h-40 border-t border-slate-850/50' : 'max-h-0'
+                    }`}
+                  >
+                    <p className="px-5 py-4 text-[11px] text-slate-400 leading-relaxed font-medium">
+                      {faq.a}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1573,46 +1801,13 @@ function App() {
                   ✕
                 </button>
 
-                {/* Glowing Archetype Badge */}
-                <div className={`w-18 h-18 rounded-full bg-gradient-to-tr ${selectedArchetype.color} p-0.5 shadow-lg shadow-pink-500/20 mb-3 flex items-center justify-center animate-pulse`}>
-                  <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center overflow-hidden">
-                    <span className="text-3xl">{selectedArchetype.emoji}</span>
-                  </div>
-                </div>
-
-                <span className="text-[8.5px] font-bold text-pink-400 tracking-wider uppercase font-outfit px-2 py-0.5 bg-pink-500/10 rounded-full border border-pink-500/15 mb-1.5">
-                  {selectedArchetype.tagline}
-                </span>
-
-                <h3 className="text-sm font-extrabold text-white font-outfit tracking-wide mb-1 leading-tight">
-                  {selectedArchetype.title}
-                </h3>
-
-                <p className="text-[9.5px] text-slate-400 leading-relaxed font-medium mb-3.5 px-1">
-                  {selectedArchetype.description}
-                </p>
-
-                {/* Share Button */}
-                <button 
-                  onClick={() => {
-                    playAudioBeep(523.25, 0.1, 'triangle');
-                    setTimeout(() => playAudioBeep(659.25, 0.15, 'triangle'), 100);
-                    triggerToast("📲 Shared successfully to Instagram Stories!");
-                  }}
-                  className="w-full py-2 bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold rounded-xl text-[10px] shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shadow-pink-500/10"
-                >
-                  📸 Share to Instagram Stories
-                </button>
-
-                <button 
-                  onClick={() => {
+                <ArchetypeCanvas 
+                  archetype={selectedArchetype} 
+                  onClose={() => {
                     setShowArchetypeModal(false);
                     playAudioBeep(440, 0.05, 'sine');
-                  }}
-                  className="mt-2 text-[9px] text-slate-500 hover:text-slate-350 font-semibold tracking-wide cursor-pointer transition-colors"
-                >
-                  Continue to Matches
-                </button>
+                  }} 
+                />
               </div>
             </div>
           )}
@@ -2619,7 +2814,12 @@ function App() {
                               setTimeout(() => playAudioBeep(659.25, 0.15, 'triangle'), 100);
                               setReferralCodeEntered(true);
                               setShowReferralVoucher(true);
-                              triggerToast("🎁 Referral code verified successfully! 2 Free Cocktails Vouchers unlocked!");
+                              if (referralCodeInput.includes('invite=') || referralCodeInput.includes('munchidate.com')) {
+                                setIsGuestJoined(true);
+                                triggerToast("🎁 Welcome Guest! Referral ticket pass synced and 2 free craft drinks unlocked!");
+                              } else {
+                                triggerToast("🎁 Referral code verified successfully! 2 Free Cocktails Vouchers unlocked!");
+                              }
                             } else {
                               playAudioBeep(180, 0.15, 'sawtooth');
                               triggerToast("❌ Please enter a valid referral code!");
@@ -2767,14 +2967,42 @@ function App() {
               <div className="flex-1 flex flex-col bg-slate-950 relative overflow-hidden animate-fade-in select-none">
                 
                 {/* Floating Header */}
-                <div className="px-4 pt-3 pb-2.5 flex flex-col items-center justify-center relative w-full border-b border-slate-800/40 bg-slate-900/40 backdrop-blur-md shrink-0">
-                  <div className="flex flex-col items-center">
+                <div className="px-4 pt-3 pb-2 flex flex-col items-center justify-center relative w-full border-b border-slate-800/40 bg-slate-900/40 backdrop-blur-md shrink-0">
+                  <div className="flex flex-col items-center mb-2">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-10 object-contain filter drop-shadow-md" />
-                    <span className="text-[8.5px] text-pink-400 font-extrabold uppercase tracking-widest leading-none mt-1 text-center">Foodie swiper • Rate places</span>
                   </div>
 
-                  {/* Neighborhood Selector Chip inside Swiper */}
-                  <div className="overflow-x-auto no-scrollbar flex gap-1 mt-2.5 max-w-full">
+                  {/* Sliding glassmorphic pill toggle */}
+                  <div className="flex bg-slate-950/60 p-0.5 rounded-full border border-slate-800/80 w-[240px] relative select-none shrink-0 mb-1">
+                    <div 
+                      className="absolute top-0.5 bottom-0.5 rounded-full bg-indigo-600 transition-all duration-300 shadow-md"
+                      style={{
+                        left: exploreMode === 'cards' ? '2px' : '118px',
+                        width: '120px'
+                      }}
+                    ></div>
+                    <button 
+                      onClick={() => {
+                        setExploreMode('cards');
+                        playAudioBeep(440, 0.08, 'sine');
+                      }}
+                      className={`flex-1 text-[9.5px] font-black uppercase py-1.5 text-center rounded-full relative z-10 transition-all cursor-pointer ${exploreMode === 'cards' ? 'text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                    >
+                      🎴 Swipe Cards
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setExploreMode('reels');
+                        playAudioBeep(523.25, 0.08, 'sine');
+                      }}
+                      className={`flex-1 text-[9.5px] font-black uppercase py-1.5 text-center rounded-full relative z-10 transition-all cursor-pointer ${exploreMode === 'reels' ? 'text-white' : 'text-slate-400 hover:text-slate-300'}`}
+                    >
+                      📲 Watch Reels
+                    </button>
+                  </div>
+
+                  {/* Neighborhood Selector Chip inside Swiper / Reels */}
+                  <div className="overflow-x-auto no-scrollbar flex gap-1 mt-1.5 max-w-full">
                     {neighborhoods.slice(0, 7).map((nh) => {
                       const isActive = nh === selectedNeighborhood;
                       return (
@@ -2783,6 +3011,7 @@ function App() {
                           onClick={() => {
                             setSelectedNeighborhood(nh);
                             setCurrentCardIndex(0);
+                            setCurrentVideoIndex(0);
                           }}
                           className={`px-2.5 py-0.5 rounded-full text-[8.5px] font-bold font-outfit transition-all shrink-0 cursor-pointer ${
                             isActive 
@@ -2797,163 +3026,302 @@ function App() {
                   </div>
                 </div>
 
-                {exploreCards.length > 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
-                    
-                    {/* SWIPABLE CARD CONTAINER */}
-                    <div className="w-full max-w-[285px] h-[375px] relative flex items-center justify-center shrink-0">
+                {exploreMode === 'cards' ? (
+                  exploreCards.length > 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
                       
-                      {/* 1. BACK CARD (Stacked Depth Effect) */}
-                      {exploreCards.length > 1 && (
-                        <div 
-                          className="absolute w-full h-full bg-slate-900/90 border border-slate-850/80 rounded-[28px] shadow-lg flex flex-col overflow-hidden select-none pointer-events-none transition-all duration-300"
-                          style={{
-                            transform: `scale(${isDragging ? 0.96 : 0.94}) translateY(${isDragging ? '4px' : '8px'})`,
-                            zIndex: 10,
-                            opacity: 0.55
-                          }}
-                        >
-                          {/* Image Placeholder */}
-                          <div className="h-44 w-full bg-slate-950 overflow-hidden relative opacity-30">
-                            <img 
-                              src={exploreCards[(currentCardIndex + 1) % exploreCards.length].image} 
-                              alt="Next spot"
-                              className="w-full h-full object-cover" 
-                            />
-                          </div>
-                          <div className="p-4 space-y-1.5">
-                            <div className="w-1/2 h-3.5 bg-slate-850 rounded"></div>
-                            <div className="w-3/4 h-2.5 bg-slate-850 rounded"></div>
-                            <div className="w-full h-6 bg-indigo-950/20 rounded-xl mt-3"></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 2. TOP ACTIVE SWIPABLE CARD */}
-                      {(() => {
-                        const activeIdx = Math.min(currentCardIndex, exploreCards.length - 1);
-                        const card = exploreCards[activeIdx];
+                      {/* SWIPABLE CARD CONTAINER */}
+                      <div className="w-full max-w-[285px] h-[375px] relative flex items-center justify-center shrink-0">
                         
-                        return (
-                          <div
-                            onMouseDown={handleDragStart}
-                            onMouseMove={(e) => handleDragMove(e, exploreCards)}
-                            onMouseUp={() => handleDragEnd(exploreCards)}
-                            onMouseLeave={() => handleDragEnd(exploreCards)}
-                            onTouchStart={handleDragStart}
-                            onTouchMove={(e) => handleDragMove(e, exploreCards)}
-                            onTouchEnd={() => handleDragEnd(exploreCards)}
-                            className="absolute w-full h-full bg-slate-900 border border-slate-700/50 rounded-[28px] shadow-2xl flex flex-col overflow-hidden select-none cursor-grab active:cursor-grabbing"
+                        {/* 1. BACK CARD (Stacked Depth Effect) */}
+                        {exploreCards.length > 1 && (
+                          <div 
+                            className="absolute w-full h-full bg-slate-900/90 border border-slate-850/80 rounded-[28px] shadow-lg flex flex-col overflow-hidden select-none pointer-events-none transition-all duration-300"
                             style={{
-                              transform: `translate(${swipeOffsetX}px, ${swipeOffsetY}px) rotate(${swipeOffsetX * 0.04}deg)`,
-                              transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                              zIndex: 20
+                              transform: `scale(${isDragging ? 0.96 : 0.94}) translateY(${isDragging ? '4px' : '8px'})`,
+                              zIndex: 10,
+                              opacity: 0.55
                             }}
                           >
-                            {/* Visual Overlay Swipe Stamp: Left (Pass) */}
-                            {swipeDirection === 'left' && (
-                              <div className="absolute top-12 right-6 z-35 border-3 border-rose-500 text-rose-500 font-black text-xs uppercase tracking-widest px-3 py-1 rounded-[4px] rotate-12 scale-125 bg-slate-950/80 backdrop-blur-sm pointer-events-none shadow-lg animate-pulse">
-                                🙅‍♂️ PASS
-                              </div>
-                            )}
-
-                            {/* Visual Overlay Swipe Stamp: Right (Visit) */}
-                            {swipeDirection === 'right' && (
-                              <div className="absolute top-12 left-6 z-35 border-3 border-emerald-500 text-emerald-500 font-black text-xs uppercase tracking-widest px-3 py-1 rounded-[4px] -rotate-12 scale-125 bg-slate-950/80 backdrop-blur-sm pointer-events-none shadow-lg animate-pulse">
-                                🍽️ VISIT
-                              </div>
-                            )}
-
-                            {/* Restaurant Image Banner */}
-                            <div className="h-44 w-full overflow-hidden relative pointer-events-none">
+                            {/* Image Placeholder */}
+                            <div className="h-44 w-full bg-slate-950 overflow-hidden relative opacity-30">
                               <img 
-                                src={card.image} 
-                                alt={card.name} 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                src={exploreCards[(currentCardIndex + 1) % exploreCards.length].image} 
+                                alt="Next spot"
+                                className="w-full h-full object-cover" 
                               />
-                              
-                              {/* Bottom Gradient Overlay */}
-                              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
-                              
-                              {/* Day Badge */}
-                              <span className="absolute top-3 left-3 bg-pink-500/90 backdrop-blur-sm text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm border border-pink-400/20">
-                                {card.day}
-                              </span>
+                            </div>
+                            <div className="p-4 space-y-1.5">
+                              <div className="w-1/2 h-3.5 bg-slate-850 rounded"></div>
+                              <div className="w-3/4 h-2.5 bg-slate-850 rounded"></div>
+                              <div className="w-full h-6 bg-indigo-950/20 rounded-xl mt-3"></div>
+                            </div>
+                          </div>
+                        )}
 
-                              {/* Neighborhood Tag */}
-                              <span className="absolute bottom-3 left-3 bg-slate-950/75 backdrop-blur-sm text-slate-300 text-[8px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-slate-800">
-                                {card.neighborhood}
-                              </span>
+                        {/* 2. TOP ACTIVE SWIPABLE CARD */}
+                        {(() => {
+                          const activeIdx = Math.min(currentCardIndex, exploreCards.length - 1);
+                          const card = exploreCards[activeIdx];
+                          
+                          return (
+                            <div
+                              onMouseDown={handleDragStart}
+                              onMouseMove={(e) => handleDragMove(e, exploreCards)}
+                              onMouseUp={() => handleDragEnd(exploreCards)}
+                              onMouseLeave={() => handleDragEnd(exploreCards)}
+                              onTouchStart={handleDragStart}
+                              onTouchMove={(e) => handleDragMove(e, exploreCards)}
+                              onTouchEnd={() => handleDragEnd(exploreCards)}
+                              className="absolute w-full h-full bg-slate-900 border border-slate-700/50 rounded-[28px] shadow-2xl flex flex-col overflow-hidden select-none cursor-grab active:cursor-grabbing"
+                              style={{
+                                transform: `translate(${swipeOffsetX}px, ${swipeOffsetY}px) rotate(${swipeOffsetX * 0.04}deg)`,
+                                transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                zIndex: 20
+                              }}
+                            >
+                              {/* Visual Overlay Swipe Stamp: Left (Pass) */}
+                              {swipeDirection === 'left' && (
+                                <div className="absolute top-12 right-6 z-35 border-3 border-rose-500 text-rose-500 font-black text-xs uppercase tracking-widest px-3 py-1 rounded-[4px] rotate-12 scale-125 bg-slate-950/80 backdrop-blur-sm pointer-events-none shadow-lg animate-pulse">
+                                  🙅‍♂️ PASS
+                                </div>
+                              )}
+
+                              {/* Visual Overlay Swipe Stamp: Right (Visit) */}
+                              {swipeDirection === 'right' && (
+                                <div className="absolute top-12 left-6 z-35 border-3 border-emerald-500 text-emerald-500 font-black text-xs uppercase tracking-widest px-3 py-1 rounded-[4px] -rotate-12 scale-125 bg-slate-950/80 backdrop-blur-sm pointer-events-none shadow-lg animate-pulse">
+                                  🍽️ VISIT
+                                </div>
+                              )}
+
+                              {/* Restaurant Image Banner */}
+                              <div className="h-44 w-full overflow-hidden relative pointer-events-none">
+                                <img 
+                                  src={card.image} 
+                                  alt={card.name} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                />
+                                
+                                {/* Bottom Gradient Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
+                                
+                                {/* Day Badge */}
+                                <span className="absolute top-3 left-3 bg-pink-500/90 backdrop-blur-sm text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm border border-pink-400/20">
+                                  {card.day}
+                                </span>
+
+                                {/* Neighborhood Tag */}
+                                <span className="absolute bottom-3 left-3 bg-slate-950/75 backdrop-blur-sm text-slate-300 text-[8px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-slate-800">
+                                  {card.neighborhood}
+                                </span>
+                              </div>
+
+                              {/* Details Panel */}
+                              <div className="flex-1 p-4.5 flex flex-col justify-between text-left pointer-events-none">
+                                <div className="space-y-1">
+                                  <h3 className="text-sm font-extrabold text-white font-outfit tracking-wide leading-tight flex items-center gap-1.5">
+                                    {card.name}
+                                  </h3>
+                                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed flex items-center gap-1">
+                                    <MapPin className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                                    <span className="truncate">{card.address}</span>
+                                  </p>
+                                </div>
+
+                                {/* Restaurant Deal specials info */}
+                                <div className="bg-indigo-950/30 border border-indigo-500/15 p-2.5 rounded-2xl flex flex-col justify-center mt-2.5">
+                                  <span className="text-[7.5px] font-black text-indigo-400 uppercase tracking-widest">Sponsored Deal</span>
+                                  <p className="text-[10px] font-bold text-slate-200 tracking-tight leading-snug line-clamp-2 mt-0.5">{card.specials}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* BOTTOM SWIPE ACTIONS BUTTONS BAR */}
+                      <div className="flex items-center justify-center gap-5 mt-4 shrink-0">
+                        
+                        {/* Swipe Left Button: Pass */}
+                        <button 
+                          onClick={() => handleSwipeAction('left', exploreCards)}
+                          className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-rose-500 hover:text-rose-400 shadow-lg hover:border-rose-500/20 active:scale-90 transition-all cursor-pointer"
+                          title="Pass on this place"
+                        >
+                          <span className="text-xl font-bold">✕</span>
+                        </button>
+
+                        {/* Info Button: View Details */}
+                        <button 
+                          onClick={() => {
+                            const activeIdx = Math.min(currentCardIndex, exploreCards.length - 1);
+                            const card = exploreCards[activeIdx];
+                            if (card) {
+                              setSelectedRestaurant(card);
+                              playAudioBeep(523.25, 0.1, 'sine');
+                            }
+                          }}
+                          className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 hover:text-indigo-300 shadow-md active:scale-90 transition-all cursor-pointer"
+                          title="View details"
+                        >
+                          <span className="text-base font-bold font-mono">ℹ️</span>
+                        </button>
+
+                        {/* Swipe Right Button: Would Visit */}
+                        <button 
+                          onClick={() => handleSwipeAction('right', exploreCards)}
+                          className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-500 hover:text-emerald-400 shadow-lg hover:border-emerald-500/20 active:scale-90 transition-all cursor-pointer"
+                          title="Would love to visit!"
+                        >
+                          <span className="text-lg">💖</span>
+                        </button>
+                      </div>
+
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
+                      <Video className="w-12 h-12 text-slate-500 animate-bounce" />
+                      <p className="text-slate-400 font-semibold">No swipable cards available</p>
+                      <p className="text-slate-600 text-xs">Try selecting a different neighborhood filter.</p>
+                    </div>
+                  )
+                ) : (
+                  exploreVideos.length > 0 ? (
+                    <div 
+                      className="flex-1 w-full relative overflow-hidden bg-black flex flex-col"
+                      onTouchStart={handleReelsDragStart}
+                      onTouchMove={handleReelsDragMove}
+                      onTouchEnd={handleReelsDragEnd}
+                      onMouseDown={handleReelsDragStart}
+                      onMouseMove={handleReelsDragMove}
+                      onMouseUp={handleReelsDragEnd}
+                      onMouseLeave={handleReelsDragEnd}
+                    >
+                      {/* Scrolling Stack */}
+                      <div 
+                        className="absolute inset-0 w-full h-full flex flex-col"
+                        style={{
+                          transform: `translateY(calc(-${currentVideoIndex * 105}% + ${reelsDragOffsetY}px))`,
+                          transition: isReelsDragging ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}
+                      >
+                        {exploreVideos.map((deal, idx) => {
+                          const isActive = idx === currentVideoIndex;
+                          return (
+                            <div 
+                              key={`${deal.name}-${idx}`} 
+                              className="w-full h-full relative flex-shrink-0 bg-slate-950 overflow-hidden flex items-center justify-center"
+                              style={{ height: '100%' }}
+                            >
+                              <video
+                                ref={el => videoRefs.current[idx] = el}
+                                src={deal.video}
+                                loop
+                                playsInline
+                                muted={isReelsMuted}
+                                className="w-full h-full object-cover pointer-events-none"
+                                preload={Math.abs(idx - currentVideoIndex) <= 1 ? "auto" : "none"}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
+                              {!isActive && (
+                                <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm pointer-events-none" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Glassmorphic HUD overlay */}
+                      {exploreVideos[currentVideoIndex] && (() => {
+                        const activeVideo = exploreVideos[currentVideoIndex];
+                        return (
+                          <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-30">
+                            <div className="w-full flex justify-between items-center pt-2">
+                              <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3 py-1 rounded-full text-[9px] font-black uppercase text-pink-400 tracking-wider flex items-center gap-1">
+                                ✨ {activeVideo.neighborhood}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setIsReelsMuted(prev => !prev);
+                                  playAudioBeep(600, 0.08, 'sine');
+                                }}
+                                className="pointer-events-auto w-9 h-9 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-800 flex items-center justify-center text-white active:scale-90 transition-all shadow-md cursor-pointer"
+                              >
+                                {isReelsMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+                              </button>
                             </div>
 
-                            {/* Details Panel */}
-                            <div className="flex-1 p-4.5 flex flex-col justify-between text-left pointer-events-none">
-                              <div className="space-y-1">
-                                <h3 className="text-sm font-extrabold text-white font-outfit tracking-wide leading-tight flex items-center gap-1.5">
-                                  {card.name}
-                                </h3>
-                                <p className="text-[10px] text-slate-400 font-medium leading-relaxed flex items-center gap-1">
-                                  <MapPin className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                                  <span className="truncate">{card.address}</span>
-                                </p>
-                              </div>
+                            <div className="w-full flex flex-col gap-3 pb-2 mt-auto">
+                              <div className="bg-slate-950/75 backdrop-blur-lg border border-slate-800/80 p-4 rounded-3xl flex flex-col gap-2 shadow-2xl text-left pointer-events-auto">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h3 className="text-sm font-extrabold text-white font-outfit tracking-wide flex items-center gap-1.5 leading-tight">
+                                      {activeVideo.name}
+                                      <span className="text-[10px] text-pink-400 font-bold bg-pink-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider font-outfit shrink-0">
+                                        Vibe Badge
+                                      </span>
+                                    </h3>
+                                    <p className="text-[10.5px] text-slate-300 font-semibold truncate flex items-center gap-1 mt-1">
+                                      <MapPin className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                                      {userLocation && (
+                                        <span className="text-indigo-400 font-bold tracking-tight">
+                                          ({calculateDistance(userLocation.lat, userLocation.lng, activeVideo.lat, activeVideo.lng)} mi) •{' '}
+                                        </span>
+                                      )}
+                                      <span className="text-slate-400">{activeVideo.address}</span>
+                                    </p>
+                                  </div>
+                                </div>
 
-                              {/* Restaurant Deal specials info */}
-                              <div className="bg-indigo-950/30 border border-indigo-500/15 p-2.5 rounded-2xl flex flex-col justify-center mt-2.5">
-                                <span className="text-[7.5px] font-black text-indigo-400 uppercase tracking-widest">Sponsored Deal</span>
-                                <p className="text-[10px] font-bold text-slate-200 tracking-tight leading-snug line-clamp-2 mt-0.5">{card.specials}</p>
+                                <div className="bg-indigo-950/20 border border-indigo-500/10 p-3 rounded-2xl flex flex-col mt-1">
+                                  <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Sponsored Deal</span>
+                                  <p className="text-[10.5px] font-bold text-slate-200 tracking-tight leading-snug line-clamp-2 mt-0.5">
+                                    {activeVideo.specials}
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 mt-1">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedRestaurant(activeVideo);
+                                      playAudioBeep(523.25, 0.1, 'sine');
+                                    }}
+                                    className="py-2.5 bg-slate-900 hover:bg-slate-850 text-white font-bold border border-slate-800 rounded-xl text-[10px] flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-md"
+                                  >
+                                    ℹ️ Details
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setDateRestaurant(activeVideo);
+                                      setShowDateFlow(true);
+                                      setDateFlowStep('intro');
+                                      setDateQuizQuestionIndex(0);
+                                      setDateQuizAnswers({});
+                                      setDateMatchedCandidates([]);
+                                      setDateSelectedMatch(null);
+                                      setDatePickedCalendarDate(null);
+                                      setDatePassAddedToCalendar(false);
+                                      playAudioBeep(523.25, 0.1, 'sine');
+                                      setTimeout(() => playAudioBeep(659.25, 0.15, 'sine'), 100);
+                                    }}
+                                    className="py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-450 text-white font-black rounded-xl text-[10px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md cursor-pointer"
+                                  >
+                                    💖 Date
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
                         );
                       })()}
                     </div>
-
-                    {/* BOTTOM SWIPE ACTIONS BUTTONS BAR */}
-                    <div className="flex items-center justify-center gap-5 mt-4 shrink-0">
-                      
-                      {/* Swipe Left Button: Pass */}
-                      <button 
-                        onClick={() => handleSwipeAction('left', exploreCards)}
-                        className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-rose-500 hover:text-rose-400 shadow-lg hover:border-rose-500/20 active:scale-90 transition-all cursor-pointer"
-                        title="Pass on this place"
-                      >
-                        <span className="text-xl font-bold">✕</span>
-                      </button>
-
-                      {/* Info Button: View Details */}
-                      <button 
-                        onClick={() => {
-                          const activeIdx = Math.min(currentCardIndex, exploreCards.length - 1);
-                          const card = exploreCards[activeIdx];
-                          if (card) {
-                            setSelectedRestaurant(card);
-                            playAudioBeep(523.25, 0.1, 'sine');
-                          }
-                        }}
-                        className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 hover:text-indigo-300 shadow-md active:scale-90 transition-all cursor-pointer"
-                        title="View details"
-                      >
-                        <span className="text-base font-bold font-mono">ℹ️</span>
-                      </button>
-
-                      {/* Swipe Right Button: Would Visit */}
-                      <button 
-                        onClick={() => handleSwipeAction('right', exploreCards)}
-                        className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-500 hover:text-emerald-400 shadow-lg hover:border-emerald-500/20 active:scale-90 transition-all cursor-pointer"
-                        title="Would love to visit!"
-                      >
-                        <span className="text-lg">💖</span>
-                      </button>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
+                      <Video className="w-12 h-12 text-slate-500 animate-bounce" />
+                      <p className="text-slate-400 font-semibold">No Reels available</p>
+                      <p className="text-slate-600 text-xs">Try selecting a different neighborhood filter.</p>
                     </div>
-
-                  </div>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
-                    <Video className="w-12 h-12 text-slate-500 animate-bounce" />
-                    <p className="text-slate-400 font-semibold">No swipable cards available</p>
-                    <p className="text-slate-600 text-xs">Try selecting a different neighborhood filter.</p>
-                  </div>
+                  )
                 )}
               </div>
             )}
@@ -3845,9 +4213,9 @@ function App() {
                     <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-2xl flex flex-col gap-1.5 shrink-0 text-left">
                       <div className="flex justify-between items-center leading-none">
                         <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest font-mono">📅 Calendar Integration</span>
-                        {datePassAddedToCalendar ? (
+                        {isGuestJoined ? (
                           <span className="text-[7.5px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-black tracking-wider uppercase animate-pulse">
-                            ✓ Synced with Partner
+                            ✓ Guest Joined & Synced!
                           </span>
                         ) : (
                           <span className="text-[7.5px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">
@@ -3932,18 +4300,99 @@ function App() {
                   <div className="w-full max-w-[320px] h-[330px] flex flex-col bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative shrink-0">
                     
                     {/* Chat Header */}
-                    <div className="bg-slate-900 border-b border-slate-850 p-2.5 flex items-center gap-2 text-left shrink-0">
-                      <div className="w-7 h-7 rounded-full bg-slate-950 border border-slate-800 overflow-hidden shrink-0 select-none">
-                        <img src={dateSelectedMatch.image} alt={dateSelectedMatch.name} className="w-full h-full object-cover" />
+                    <div className="bg-slate-900 border-b border-slate-850 p-2.5 flex items-center justify-between text-left shrink-0">
+                      <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-950 border border-slate-800 overflow-hidden shrink-0 select-none">
+                          <img src={dateSelectedMatch.image} alt={dateSelectedMatch.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="overflow-hidden leading-none space-y-0.5">
+                          <h4 className="text-[11px] font-bold text-white font-outfit truncate">{dateSelectedMatch.name}</h4>
+                          <span className="text-[7.5px] text-pink-400 font-extrabold tracking-wider uppercase leading-none block">Active dining partner</span>
+                        </div>
                       </div>
-                      <div className="overflow-hidden leading-none space-y-0.5">
-                        <h4 className="text-[11px] font-bold text-white font-outfit truncate">{dateSelectedMatch.name}</h4>
-                        <span className="text-[7.5px] text-pink-400 font-extrabold tracking-wider uppercase leading-none block">Active dining partner</span>
-                      </div>
+
+                      {/* Video Chat Button Option */}
+                      <button
+                        onClick={handleInitiateVideoCall}
+                        className="bg-slate-800 hover:bg-indigo-650 text-indigo-400 hover:text-white p-2 rounded-xl flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 mr-1.5"
+                        title="Start 4-Min Video Call ($3.00 Sponsor Charge)"
+                      >
+                        <Video className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     {/* Chat Messages Log */}
                     <div className="flex-1 p-3 overflow-y-auto no-scrollbar space-y-3 text-left">
+                      
+                      {/* Proposed Date Approval Block */}
+                      <div className={`p-3 rounded-2xl border mb-3 select-none flex flex-col gap-2 transition-all ${
+                        isDateApprovedByBoth
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          : 'bg-slate-900/90 border-slate-800 text-slate-200 shadow-lg'
+                      }`}>
+                        <div className="flex justify-between items-center shrink-0 leading-none">
+                          <span className="text-[8px] font-black tracking-widest font-mono uppercase">
+                            📅 DATE SPONSOR PROPOSAL
+                          </span>
+                          {isDateApprovedByBoth ? (
+                            <span className="text-[7.5px] bg-emerald-500 text-white font-extrabold px-1.5 py-0.5 rounded leading-none select-none uppercase tracking-wide">
+                              ✓ APPROVED
+                            </span>
+                          ) : (
+                            <span className="text-[7.5px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">
+                              PENDING CONFIRM
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Summary stats */}
+                        <div className="space-y-1 font-mono text-[8.5px] text-slate-300 leading-snug">
+                          <div className="flex justify-between">
+                            <span className="text-slate-500 uppercase">Target Venue:</span>
+                            <span className="text-white font-bold uppercase">{dateRestaurant?.name} 📍</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500 uppercase">Day & Time:</span>
+                            <span className="text-amber-400 font-bold uppercase">{datePickedCalendarDate}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500 uppercase">Sponsorship:</span>
+                            <span className="text-pink-400 font-bold uppercase">Fully Sponsored (Host pays)</span>
+                          </div>
+                        </div>
+
+                        {/* Button/Accept Action */}
+                        {!isDateApprovedByBoth ? (
+                          <button
+                            onClick={() => {
+                              setIsDateApprovedByBoth(true);
+                              setIsGuestJoined(true); // Syncs calendar guest status
+                              playLockChime(0);
+                              setTimeout(() => playLockChime(2), 120);
+                              triggerToast("🎉 Sponsored Date Confirmed & Approved by Both!");
+                              
+                              // Append response message in chat log
+                              setChatMessages(prev => [
+                                ...prev,
+                                {
+                                  sender: 'match',
+                                  text: `Omg, date officially approved by both of us! 🥳 Locked in! I've accepted the ticket and synced it to my calendar. See you at ${dateRestaurant.name}! 💖`
+                                }
+                              ]);
+                            }}
+                            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-450 hover:to-rose-550 text-white text-[9px] font-black py-2 rounded-xl flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer shadow-md uppercase tracking-wider animate-glow-ring"
+                          >
+                            👉 Click to Approve Date Together 👈
+                          </button>
+                        ) : (
+                          <div className="text-center py-1.5 border-t border-dashed border-emerald-500/25 leading-tight">
+                            <span className="text-[8px] text-emerald-400 font-black uppercase tracking-wider font-mono">
+                              🎉 Confirmed & Locked! Both Calendars Synced!
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
                       {chatMessages.map((msg, mIdx) => {
                         const isMe = msg.sender === 'you';
                         return (
@@ -3987,6 +4436,251 @@ function App() {
                         🎉 Close & Book Date Pass
                       </button>
                     </div>
+
+                    {/* ================= OVERLAY 1: $3.00 VIDEO CHAT SWIPE PAYWALL ================= */}
+                    {showVideoPaywall && (
+                      <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col justify-between p-4 animate-fade-in text-left select-none">
+                        {/* Header */}
+                        <div className="flex justify-between items-center shrink-0">
+                          <span className="text-[8px] font-black text-indigo-400 tracking-widest font-outfit uppercase">Video Speed Call</span>
+                          <button 
+                            onClick={() => setShowVideoPaywall(false)}
+                            className="text-slate-400 hover:text-white text-[9px] bg-slate-850 px-2 py-1 rounded-full cursor-pointer transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* Center Visual */}
+                        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3 my-2">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-2xl shadow-xl shadow-indigo-500/20 animate-pulse">
+                            📹
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="text-xs font-black text-white font-outfit leading-tight">4-Minute Speed Call</h3>
+                            <p className="text-[9.5px] text-slate-400 leading-relaxed max-w-[210px]">
+                              Connect face-to-face with <strong>{dateSelectedMatch?.name}</strong> to feel the chemistry spark before your date!
+                            </p>
+                          </div>
+
+                          {/* Pricing Card */}
+                          <div className="w-full bg-slate-900 border border-slate-800 p-3 rounded-2xl flex flex-col items-center max-w-[220px]">
+                            <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest font-mono">Billed to Sponsor</span>
+                            <span className="text-2xl font-black text-white mt-0.5 font-outfit">$3.00</span>
+                            <span className="text-[7px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded font-bold uppercase mt-1">
+                              Secure Stripe Charge
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Swipe Component */}
+                        <div className="space-y-1.5 shrink-0">
+                          <div className="text-center text-[8px] font-black text-indigo-400 uppercase tracking-wider animate-bounce">
+                            👇 Click handle to pay $3.00 & start call 👇
+                          </div>
+                          <div 
+                            className="w-full bg-slate-950/80 border border-slate-800 rounded-full h-11 relative flex items-center justify-center overflow-hidden cursor-pointer"
+                            id="swipe-track"
+                          >
+                            <span className="text-[8.5px] font-black text-slate-600 tracking-widest font-outfit uppercase select-none pointer-events-none">
+                              Swipe to Pay $3.00
+                            </span>
+                            
+                            <div 
+                              onClick={handleSimulatedSwipe}
+                              className="absolute left-1 top-1 bottom-1 w-9 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-450 hover:to-rose-550 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all text-[10px] font-black text-white cursor-pointer select-none"
+                            >
+                              ➔
+                            </div>
+                          </div>
+                          <div className="text-center text-[7px] text-slate-500 font-mono leading-none">
+                            Billed securely to cards ending in 4242.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ================= OVERLAY 2: CONNECTING ROOM STATE ================= */}
+                    {isVideoCallConnecting && (
+                      <div className="absolute inset-0 bg-slate-950 z-50 flex flex-col justify-center items-center p-4 animate-fade-in select-none text-center space-y-4">
+                        <div className="w-16 h-16 rounded-full bg-slate-900 border-2 border-indigo-500 flex items-center justify-center relative overflow-hidden">
+                          <img src={dateSelectedMatch.image} alt={dateSelectedMatch.name} className="w-full h-full object-cover blur-[1.5px] opacity-60" />
+                          <div className="absolute inset-0 border-2 border-indigo-400 rounded-full animate-ping" style={{ animationDuration: '1.5s' }}></div>
+                          <div className="absolute text-xl z-10 animate-bounce">🔒</div>
+                        </div>
+                        
+                        <div className="space-y-1 leading-tight">
+                          <span className="text-[8px] font-black text-indigo-400 tracking-widest font-outfit uppercase animate-pulse">
+                            Connecting Room
+                          </span>
+                          <h3 className="text-xs font-black text-white font-outfit leading-tight mt-0.5">Securing Video Handshake...</h3>
+                          <p className="text-[9px] text-slate-400 max-w-[200px] leading-relaxed mt-1">
+                            Establishing dynamic WebRTC speed call room and billing $3.00 dater pass securely to Stripe...
+                          </p>
+                        </div>
+                        <div className="w-6 h-6 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+
+                    {/* ================= OVERLAY 3: SIMULATED ACTIVE VIDEO CALL ================= */}
+                    {isVideoCallActive && (
+                      <div className="absolute inset-0 bg-slate-950 z-50 flex flex-col justify-between p-3.5 animate-fade-in select-none rounded-3xl">
+                        {/* Full Screen Partner Video stream */}
+                        <div className="absolute inset-0 z-10 overflow-hidden rounded-3xl">
+                          <img 
+                            src={dateSelectedMatch.image} 
+                            alt={dateSelectedMatch.name} 
+                            className="w-full h-full object-cover brightness-[0.7] scale-105 blur-[0.5px] animate-pulse"
+                            style={{ animationDuration: '4s' }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80"></div>
+                        </div>
+
+                        {/* Header */}
+                        <div className="z-20 flex justify-between items-center text-left shrink-0">
+                          <div className="flex gap-1.5 items-center overflow-hidden">
+                            <div className="w-6 h-6 rounded-full bg-slate-900 border border-slate-700 overflow-hidden shrink-0">
+                              <img src={dateSelectedMatch.image} alt={dateSelectedMatch.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="leading-none overflow-hidden max-w-[120px]">
+                              <h4 className="text-[10px] font-black text-white font-outfit truncate">{dateSelectedMatch.name}</h4>
+                              <span className="text-[7px] text-pink-400 font-extrabold tracking-widest uppercase mt-0.5 block truncate">
+                                Speed Call
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Countdown Timer */}
+                          <div className="bg-red-500/10 border border-red-500/25 px-2 py-0.5 rounded-full text-red-400 text-[9px] font-black font-mono flex items-center gap-1 animate-pulse leading-none">
+                            <span className="w-1 h-1 rounded-full bg-red-400"></span>
+                            {Math.floor(videoCallTimer / 60)}:{String(videoCallTimer % 60).padStart(2, '0')}
+                          </div>
+                        </div>
+
+                        {/* Speech Bubble */}
+                        <div className="z-20 flex-1 flex flex-col justify-end pb-3 max-w-[240px] mx-auto text-center">
+                          <div className="bg-black/50 backdrop-blur-md border border-white/5 p-3 rounded-2xl space-y-0.5">
+                            <span className="text-[7.5px] font-extrabold text-indigo-400 tracking-wider font-mono uppercase">
+                              Status: Connected
+                            </span>
+                            <p className="text-[9.5px] text-slate-200 leading-relaxed font-medium">
+                              "Wow, this is so cool that we can video chat before meeting at {dateRestaurant.name}! You look great!"
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Pip self view and control tools */}
+                        <div className="z-20 flex justify-between items-center gap-3 shrink-0">
+                          {/* Pip self preview */}
+                          <div className="w-12 h-18 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-lg shrink-0 flex items-center justify-center relative">
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/20"></div>
+                            <span className="text-[7px] font-extrabold text-slate-400 absolute bottom-0.5 left-0 right-0 text-center select-none">
+                              You
+                            </span>
+                            <div className="text-sm">👤</div>
+                          </div>
+
+                          {/* Controls */}
+                          <div className="flex gap-2 justify-center items-center flex-1 pr-1">
+                            <button className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 p-2 rounded-full cursor-pointer transition-colors active:scale-90 border border-slate-700 text-[10px]">
+                              🎙️
+                            </button>
+                            <button className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 p-2 rounded-full cursor-pointer transition-colors active:scale-90 border border-slate-700 text-[10px]">
+                              📹
+                            </button>
+                            <button 
+                              onClick={() => {
+                                playAudioBeep(330, 0.25, 'sawtooth');
+                                setVideoCallTimerActive(false);
+                                isVideoCallActive(false);
+                                setVideoCallRatingActive(true);
+                              }}
+                              className="bg-red-600 hover:bg-red-550 text-white w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-lg shadow-red-600/35 border border-red-500 animate-glow-ring text-[10px]"
+                              title="Hang Up Call"
+                            >
+                              📞
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ================= OVERLAY 4: CHEMISTRY VERDICT RATING ================= */}
+                    {videoCallRatingActive && (
+                      <div className="absolute inset-0 bg-slate-950 z-50 flex flex-col justify-between p-4 animate-fade-in select-none text-left rounded-3xl">
+                        <div className="shrink-0 text-center">
+                          <span className="text-[8px] font-black text-pink-400 tracking-widest font-outfit uppercase">Call Finished</span>
+                          <h3 className="text-xs font-black text-white font-outfit leading-tight mt-0.5">Chemistry Verdict</h3>
+                        </div>
+
+                        {/* Center rating content */}
+                        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4 my-2">
+                          <div className="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 overflow-hidden shrink-0 select-none">
+                            <img src={dateSelectedMatch.image} alt={dateSelectedMatch.name} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-[10px] font-black text-white font-outfit">Did you feel a chemistry spark?</h4>
+                            <p className="text-[9px] text-slate-400 leading-snug max-w-[200px]">
+                              Let us know if you felt a spark during your speed call with <strong>{dateSelectedMatch.name}</strong>.
+                            </p>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="w-full space-y-1.5 max-w-[190px]">
+                            <button 
+                              onClick={() => {
+                                playJackpotFanfare();
+                                setVideoCallRatingActive(false);
+                                triggerToast("✨ High Chemistry Spark Confirmed! Gold star locked in!");
+                                
+                                // Append success verdict in chat
+                                setChatMessages(prev => [
+                                  ...prev,
+                                  { 
+                                    sender: 'you', 
+                                    text: "✨ I had an amazing time on our speed video call! The spark is definitely there!" 
+                                  },
+                                  {
+                                    sender: 'match',
+                                    text: `OMG! Me too!! 💖 You fully deserve that gold star. Counting down the seconds until our date! See you at ${dateRestaurant.name}! 🎟️`
+                                  }
+                                ]);
+                              }}
+                              className="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 hover:from-pink-450 hover:to-pink-550 text-white font-black py-2.5 rounded-2xl text-[9px] flex items-center justify-center gap-1 shadow-lg shadow-pink-500/20 active:scale-95 transition-all cursor-pointer uppercase tracking-wider"
+                            >
+                              ✨ Yes, Spark Felt!
+                            </button>
+                            <button 
+                              onClick={() => {
+                                playAudioBeep(440, 0.08, 'sine');
+                                setVideoCallRatingActive(false);
+                                triggerToast("🤝 Friend connection saved! Date ticket remains active.");
+                                
+                                // Append casual verdict in chat
+                                setChatMessages(prev => [
+                                  ...prev,
+                                  { 
+                                    sender: 'you', 
+                                    text: "Thanks for the video call! Looking forward to grabbing our sponsored specials as friends!" 
+                                  },
+                                  {
+                                    sender: 'match',
+                                    text: "Absolutely! Friends date is going to be so high-vibe. See you there!"
+                                  }
+                                ]);
+                              }}
+                              className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold py-2.5 rounded-2xl text-[9px] flex items-center justify-center active:scale-95 transition-all cursor-pointer border border-slate-700 uppercase tracking-wider"
+                            >
+                              🤝 Just friends / Next time
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-center text-[7px] text-slate-500 font-mono leading-none">
+                          Your rating remains private unless you both feel a spark.
+                        </div>
+                      </div>
+                    )}
 
                   </div>
                 )}

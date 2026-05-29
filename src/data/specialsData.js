@@ -1,4 +1,88 @@
 export const specialsData = [
+  {
+    day: "Monday",
+    name: "Oz Pizza",
+    ig: "@ozpizzafairburn",
+    address: "16 W Broad St, Fairburn, GA 30213",
+    neighborhood: "Fairburn",
+    specials: "$1.50 Cheese Slices and $3.00 Draft Beers during happy hour (4 PM - 7 PM)",
+    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.5683,
+    lng: -84.5815
+  },
+  {
+    day: "Tuesday",
+    name: "The Real Milk & Honey",
+    ig: "@therealmilkhoney",
+    address: "3719 Main St, College Park, GA 30337",
+    neighborhood: "College Park",
+    specials: "$12 Chicken & Waffle baskets served with signature honey drizzle (11 AM - 3 PM)",
+    image: "https://images.unsplash.com/photo-1565299543923-37dd39e06724?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.654,
+    lng: -84.45
+  },
+  {
+    day: "Wednesday",
+    name: "Green Ginger Southern Asian",
+    ig: "@greengingeraud",
+    address: "4720 Jonesboro Rd, Union City, GA 30291",
+    neighborhood: "Union City",
+    specials: "Half-priced Sushi Rolls and $4 Kirin Ichiban drafts (5 PM - 8 PM)",
+    image: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.585,
+    lng: -84.542
+  },
+  {
+    day: "Thursday",
+    name: "Celtic Tavern",
+    ig: "@celtictavernconyers",
+    address: "918 Commercial St NE, Conyers, GA 30012",
+    neighborhood: "Conyers",
+    specials: "$10 Shepherd's Pie and $5 Irish Stout pints on the cozy patio (All Day)",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.6675,
+    lng: -84.0175
+  },
+  {
+    day: "Friday",
+    name: "The Grit",
+    ig: "@thegritathens",
+    address: "199 Prince Ave, Athens, GA 30601",
+    neighborhood: "Athens",
+    specials: "Buy one, get one half-off vegan/vegetarian specialty cakes and cookies (3 PM - 6 PM)",
+    image: "https://images.unsplash.com/photo-1587314168485-3236d6710814?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.96,
+    lng: -83.38
+  },
+  {
+    day: "Saturday",
+    name: "Yard House",
+    ig: "@yardhouse",
+    address: "261 19th St NW, Atlanta, GA 30363",
+    neighborhood: "Atlantic Station",
+    specials: "Half-priced selected appetizers and $2 off all draft craft beers during Happy Hour (3:00 PM - 6:00 PM)",
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.7915,
+    lng: -84.398
+  },
+  {
+    day: "Sunday",
+    name: "Ladybird Grove & Mess Hall",
+    ig: "@ladybirdatl",
+    address: "684 John Wesley Dobbs Ave NE, Atlanta, GA 30312",
+    neighborhood: "Old Fourth Ward",
+    specials: "$12 Basecamp Burgers + draft beer combo, and $7 seasonal cocktail pouches served on the BeltLine patio (4 PM - 6 PM)",
+    image: "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=600&auto=format&fit=crop",
+    video: "https://assets.mixkit.co/videos/preview/mixkit-pouring-beer-into-a-glass-4998-large.mp4",
+    lat: 33.757,
+    lng: -84.364
+  },
   // ==================== MONDAY ====================
   {
     day: "Monday",

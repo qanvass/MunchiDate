@@ -30,24 +30,123 @@
     <meta name="apple-mobile-web-app-title" content="munchidate" />
     <link rel="apple-touch-icon" href="/icon-192.png?v=10" />
     
-    <!-- JSON-LD WebApplication Schema for Search Engine AEO/SEO Compliance -->
+    <!-- JSON-LD WebApplication, LocalBusiness, FAQPage & FoodEstablishment Catalog Schema for AEO/SEO Compliance -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "MunchiDate",
-        "url": "https://munchidate.com",
-        "logo": "https://munchidate.com/icon-512.png",
-        "description": "Discover the best daily food specials, happy hours, and viral dining deals in Atlanta. Rate places and match with singles who share your taste in food.",
-        "applicationCategory": "FoodEstablishmentApplication",
-        "operatingSystem": "All",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "@id": "https://munchidate.com/#webapp",
+            "name": "MunchiDate",
+            "url": "https://munchidate.com",
+            "logo": "https://munchidate.com/icon-512.png",
+            "description": "Discover the best daily food specials, happy hours, and viral dining deals in Atlanta. Rate places and match with singles who share your taste in food.",
+            "applicationCategory": "FoodEstablishmentApplication",
+            "operatingSystem": "All",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          },
+          {
+            "@type": "LocalBusiness",
+            "@id": "https://munchidate.com/#localbusiness",
+            "name": "MunchiDate Atlanta",
+            "description": "Atlanta's premier food specials, happy hours, and viral dining deals mapping directory.",
+            "telephone": "+1-404-555-0199",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Midtown Atlanta",
+              "addressLocality": "Atlanta",
+              "addressRegion": "GA",
+              "postalCode": "30309",
+              "addressCountry": "US"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": 33.7749,
+              "longitude": -84.3819
+            },
+            "url": "https://munchidate.com",
+            "priceRange": "$",
+            "hasOfferCatalog": {
+              "@type": "OfferCatalog",
+              "name": "Atlanta Dining Specials & Happy Hours",
+              "itemListElement": [
+                {
+                  "@type": "Offer",
+                  "itemOffered": {
+                    "@type": "FoodEstablishment",
+                    "name": "Loca Luna",
+                    "description": "99-cent Sangria glasses and half-priced Spanish tapas (Midtown Atlanta)."
+                  }
+                },
+                {
+                  "@type": "Offer",
+                  "itemOffered": {
+                    "@type": "FoodEstablishment",
+                    "name": "Alici Oyster Bar",
+                    "description": "$1.75 fresh shucked oysters and $10 craft cocktails (Midtown Atlanta)."
+                  }
+                },
+                {
+                  "@type": "Offer",
+                  "itemOffered": {
+                    "@type": "FoodEstablishment",
+                    "name": "Forza Storico",
+                    "description": "50% off all bottles of wine paired with Roman antipasti and pizzas (West Midtown)."
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://munchidate.com/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How does MunchiDate help you find Atlanta happy hours and food specials?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "MunchiDate is Atlanta’s premium interactive map directory tracking over 70+ restaurant specials, happy hours, and dining deals. Users can filter deals by day of the week, search by favorite food categories, and geolocate active spots in real-time."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What are the best food specials and dining deals for date planning in Atlanta?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Whether you are planning a casual taco night at Loca Luna in Midtown, oyster happy hours at Alici in Buckhead, or a romantic pasta dinner at Forza Storico in West Midtown, MunchiDate compiles live, human-verified specials tailored specifically to your foodie taste preferences."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does the MunchiDate AI Matchmaker connect local single foodies?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Our proprietary AI Date Matchmaker matches you with compatible local singles based on your flavor profile, favorite cuisines, hosting preferences, and neighborhood convenience. Simply take our 5-question Matchmaker Quiz to unlock verified matches and plan the perfect dining date."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Are the happy hour deals and food specials verified?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, absolutely. Our dining deal database is synchronized and verified daily by our team. We coordinate directly with Atlanta food establishments and social media feeds to ensure 100% accurate pricing, hours, and active specials."
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
+    
+    <!-- Leaflet Vector Mapping CSS & JS CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     
     <title>munchidate.com - Atlanta Happy Hours & Specials</title>
   </head>
@@ -55,12 +154,41 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration & Advanced Capabilities -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then((reg) => console.log('Service worker registered successfully:', reg.scope))
+            .then(async (reg) => {
+              console.log('Service worker registered successfully:', reg.scope);
+              
+              // Register Background Sync specials updates
+              if ('sync' in reg) {
+                try {
+                  await reg.sync.register('sync-specials');
+                  console.log('PWA Background Sync registered.');
+                } catch (err) {
+                  console.log('Background sync registration failed:', err);
+                }
+              }
+              
+              // Register Periodic Background Sync if supported
+              if ('periodicSync' in reg) {
+                try {
+                  const status = await navigator.permissions.query({
+                    name: 'periodic-background-sync',
+                  });
+                  if (status.state === 'granted') {
+                    await reg.periodicSync.register('periodic-specials-sync', {
+                      minInterval: 24 * 60 * 60 * 1000, // 24 hours
+                    });
+                    console.log('PWA Periodic Background Sync active.');
+                  }
+                } catch (err) {
+                  console.log('Periodic sync registration failed:', err);
+                }
+              }
+            })
             .catch((err) => console.log('Service worker registration failed:', err));
         });
       }

@@ -1,0 +1,25 @@
+# robots.txt for munchidate.com
+# World-Class Generative Engine Optimization (GEO) & Search Engine Optimization (SEO) crawler instructions.
+
+User-agent: Googlebot
+Allow: /
+Allow: /?*
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /?*
+
+User-agent: GPTBot
+Allow: /
+Allow: /?*
+
+User-agent: Claude-Web
+Allow: /
+Allow: /?*
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /private/
+
+Sitemap: https://munchidate.com/sitemap.xml

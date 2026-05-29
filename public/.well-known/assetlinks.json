@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.munchidate.twa",
+      "sha256_cert_fingerprints": [
+        "E1:B9:C5:F0:85:AF:CF:12:E0:2C:0E:0E:D9:66:A6:41:A2:4D:66:28:20:63:7F:4E:C0:C4:86:82:37:7E:ED:7E"
+      ]
+    }
+  }
+]

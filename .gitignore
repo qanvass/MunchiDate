@@ -28,3 +28,7 @@ dist-ssr
 .env.*
 scratch
 
+# Packages & Service accounts
+munchidate - Google Play package.zip
+munchidate-290a05bed438.json
+

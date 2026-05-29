@@ -144,6 +144,7 @@ function App() {
 
   // ================= GEOLOCATION & HAVERSINE PROXIMITY =================
   const [userLocation, setUserLocation] = useState(null);
+  const [currentCity, setCurrentCity] = useState('Atlanta');
 
   // Live Geolocation watch effect
   useEffect(() => {
@@ -165,6 +166,42 @@ function App() {
       setUserLocation({ lat: 33.7749, lng: -84.3819 });
     }
   }, []);
+
+  // Live Reverse Geocoding watch effect to resolve client's city name
+  useEffect(() => {
+    if (!userLocation) return;
+    
+    // Quick bounding box check: if close to Atlanta coordinates (33.77, -84.38), skip remote fetch
+    const distToAtlanta = Math.sqrt(
+      Math.pow(userLocation.lat - 33.7749, 2) + 
+      Math.pow(userLocation.lng - (-84.3819), 2)
+    );
+    
+    if (distToAtlanta < 0.6) {
+      setCurrentCity('Atlanta');
+      return;
+    }
+
+    const fetchCityName = async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${userLocation.lat}&lon=${userLocation.lng}`, {
+          headers: {
+            'Accept-Language': 'en'
+          }
+        });
+        const data = await res.json();
+        if (data && data.address) {
+          const city = data.address.city || data.address.town || data.address.village || data.address.suburb || 'Atlanta';
+          setCurrentCity(city);
+        }
+      } catch (err) {
+        console.warn("Free reverse-geocoding fetch failed, falling back to Atlanta:", err);
+        setCurrentCity('Atlanta');
+      }
+    };
+
+    fetchCityName();
+  }, [userLocation]);
 
   // ================= DEEP LINKING ROUTE PARSER (GEO/SEO COMPLIANCE) =================
   useEffect(() => {
@@ -2592,7 +2629,7 @@ function App() {
                 <div className="px-5 pt-2 pb-3 flex flex-col items-center justify-center relative w-full border-b border-slate-800/40 bg-slate-900/40 backdrop-blur-md">
                   <div className="flex flex-col items-center">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-14 object-contain filter drop-shadow-md" />
-                    <span className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase mt-1.5 block text-center">📝 Atlanta's Local Foodie Directory</span>
+                    <span className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase mt-1.5 block text-center">📝 {currentCity.toUpperCase()}'S LOCAL FOODIE DIRECTORY</span>
                   </div>
                   {/* User Profile Avatar / Login trigger */}
                   <div 
@@ -3037,7 +3074,7 @@ function App() {
                 <div className="px-4 pt-3 pb-2 flex flex-col items-center justify-center relative w-full border-b border-slate-800/40 bg-slate-900/40 backdrop-blur-md shrink-0">
                   <div className="flex flex-col items-center mb-2">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-10 object-contain filter drop-shadow-md" />
-                    <span className="text-[8px] text-indigo-400 font-extrabold tracking-wider uppercase mt-1 block text-center">🍑 Buckhead • Midtown • Inman Park • Atlanta</span>
+                    <span className="text-[8px] text-indigo-400 font-extrabold tracking-wider uppercase mt-1 block text-center">🍑 Buckhead • Midtown • Inman Park • {currentCity}</span>
                   </div>
 
                   {/* Sliding glassmorphic pill toggle */}
@@ -3446,7 +3483,7 @@ function App() {
                 <div className="absolute top-4 left-4 right-4 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl z-20 flex flex-col items-center justify-center shadow-lg">
                   <div className="flex flex-col items-center">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-12 object-contain filter drop-shadow-md" />
-                    <span className="text-[9px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mt-1.5 text-center">📍 {selectedDay}'s Active Atlanta Spots Map</span>
+                    <span className="text-[9px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mt-1.5 text-center">📍 {selectedDay.toUpperCase()}'S ACTIVE {currentCity.toUpperCase()} SPOTS MAP</span>
                   </div>
                   <button 
                     onClick={() => {

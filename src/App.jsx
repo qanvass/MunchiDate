@@ -374,7 +374,7 @@ function App() {
           name: authName || authEmail.split('@')[0] || "Foodie Explorer",
           avatar_url: `/portraits/profile_${Math.floor(Math.random() * 30) + 1}.png`,
           archetype: selectedArchetype ? selectedArchetype.title : "Midnight Street Food Rebel",
-          saved_spots: savedSpecials.map(s => s.name),
+          saved_spots: savedSpecials,
           free_meetings_left: user ? user.free_meetings_left : 1,
           is_premium: user ? user.is_premium : false,
           premium_since: user ? user.premium_since : null
@@ -1498,6 +1498,12 @@ function App() {
     }
     setSavedSpecials(updated);
     localStorage.setItem('atl_saved_deals', JSON.stringify(updated));
+    if (user) {
+      setUser(prev => ({
+        ...prev,
+        saved_spots: updated
+      }));
+    }
   };
 
   // Dynamic Google Maps JS API loader
@@ -2032,6 +2038,65 @@ function App() {
                         <span className="text-slate-200 font-bold">{user.saved_spots ? user.saved_spots.length : 0} Spots</span>
                       </div>
                     </div>
+
+                    {/* Interactive Saved Restaurants List */}
+                    {user.saved_spots && user.saved_spots.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-slate-850 w-full text-left">
+                        <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">📚 Saved Culinary Spots Directory</span>
+                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto no-scrollbar pr-0.5">
+                          {user.saved_spots.map((spotName) => {
+                            const matchedRestaurant = specialsData.find(r => 
+                              r.name.toLowerCase() === spotName.toLowerCase() ||
+                              spotName.toLowerCase().includes(r.name.toLowerCase()) ||
+                              r.name.toLowerCase().includes(spotName.toLowerCase())
+                            );
+                            
+                            return (
+                              <div 
+                                key={spotName}
+                                onClick={() => {
+                                  if (matchedRestaurant) {
+                                    playAudioBeep(587.33, 0.08, 'sine');
+                                    setSelectedRestaurant(matchedRestaurant);
+                                    setMapSelectedRestaurant(matchedRestaurant);
+                                    setShowAuthModal(false); // close the profile modal
+                                    triggerToast(`✨ Loaded details for ${matchedRestaurant.name}!`);
+                                  } else {
+                                    triggerToast(`🔎 ${spotName} detail parsing...`);
+                                  }
+                                }}
+                                className="w-full bg-slate-950 hover:bg-indigo-950/20 border border-slate-900 hover:border-indigo-500/20 p-2 rounded-xl flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98] group"
+                              >
+                                {matchedRestaurant ? (
+                                  <>
+                                    <img 
+                                      src={matchedRestaurant.image} 
+                                      alt={matchedRestaurant.name} 
+                                      className="w-6 h-6 rounded-lg object-cover border border-slate-800"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex justify-between items-center">
+                                        <h4 className="text-[9px] font-black text-slate-200 truncate group-hover:text-indigo-400 transition-colors">{matchedRestaurant.name}</h4>
+                                        <span className="text-[6.5px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/10 uppercase tracking-wide leading-none">{matchedRestaurant.neighborhood.split('/')[0]}</span>
+                                      </div>
+                                      <p className="text-[7.5px] text-slate-500 truncate mt-0.5">{matchedRestaurant.specials.split(' (')[0]}</p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="w-6 h-6 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px]">🍽️</div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-[9px] font-black text-slate-400 truncate">{spotName}</h4>
+                                      <p className="text-[7.5px] text-slate-600 truncate mt-0.5">Custom Restaurant Entry</p>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <button 
                       onClick={() => {

@@ -44,6 +44,104 @@ function App() {
   const streetViewRef = useRef(null);
   const panoramaRef = useRef(null);
 
+  // ================= CASINO SLOT MACHINE DEAL GRABBER STATES =================
+  const slotEmojis = ['🌮', '🍔', '🍕', '🍹', '🍺', '🍣', '🥗', '🍗', '🍜', '🍤'];
+  
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [slotSpinning, setSlotSpinning] = useState(false);
+  const [slotLeverPulled, setSlotLeverPulled] = useState(false);
+  
+  const [reel1, setReel1] = useState('❓');
+  const [reel2, setReel2] = useState('❓');
+  const [reel3, setReel3] = useState('❓');
+  
+  const [slotWinnerDeal, setSlotWinnerDeal] = useState(null);
+  const [slotStatusText, setSlotStatusText] = useState('PULL THE LEVER TO SPIN!');
+  const [slotTickerText, setSlotTickerText] = useState('🎰 READY TO PARSE DAILY SPECIALS ONLINE & OFFLINE... 🎰');
+  const [slotDemoMode, setSlotDemoMode] = useState(true); // default to true so developers/users can test instantly
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
+
+  // ================= AI MATCHMAKING & CALENDAR DATE UNLOCK STATES =================
+  const [showDateFlow, setShowDateFlow] = useState(false);
+  const [dateRestaurant, setDateRestaurant] = useState(null);
+  
+  // Step workflow tracker: 'intro' | 'quiz' | 'scanning' | 'matches' | 'revealed' | 'chat'
+  const [dateFlowStep, setDateFlowStep] = useState('intro');
+  const [dateQuizQuestionIndex, setDateQuizQuestionIndex] = useState(0);
+  const [dateQuizAnswers, setDateQuizAnswers] = useState({});
+  const [dateMatchedCandidates, setDateMatchedCandidates] = useState([]);
+  const [dateSelectedMatch, setDateSelectedMatch] = useState(null);
+  const [datePickedCalendarDate, setDatePickedCalendarDate] = useState(null);
+  const [dateInviteText, setDateInviteText] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [isTypingChat, setIsTypingChat] = useState(false);
+  const [matchmakerPreference, setMatchmakerPreference] = useState('M4F');
+  const [datePassAddedToCalendar, setDatePassAddedToCalendar] = useState(false);
+  const [isScanningDates, setIsScanningDates] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showDesktopPrompt, setShowDesktopPrompt] = useState(false);
+  
+  // ================= VIRAL GROWTH LOOPS STATE =================
+  const [selectedArchetype, setSelectedArchetype] = useState(null);
+  const [showArchetypeModal, setShowArchetypeModal] = useState(false);
+  const [hasVotedDebate, setHasVotedDebate] = useState(false);
+  const [debateVotes, setDebateVotes] = useState({ option1: 184, option2: 67 }); 
+  const [isRegisteredGoldenTicket, setIsRegisteredGoldenTicket] = useState(false);
+  const [showDatePassModal, setShowDatePassModal] = useState(false);
+  const [referralCodeInput, setReferralCodeInput] = useState('');
+  const [referralCodeEntered, setReferralCodeEntered] = useState(false);
+  const [showReferralVoucher, setShowReferralVoucher] = useState(false);
+  const [isGuestJoined, setIsGuestJoined] = useState(false);
+
+  // ================= VIDEO CHAT & DATE APPROVAL STATES =================
+  const [isDateApprovedByBoth, setIsDateApprovedByBoth] = useState(false);
+  const [showVideoPaywall, setShowVideoPaywall] = useState(false);
+  const [isVideoCallConnecting, setIsVideoCallConnecting] = useState(false);
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
+  const [videoCallTimer, setVideoCallTimer] = useState(240); // 4 minutes
+  const [videoCallTimerActive, setVideoCallTimerActive] = useState(false);
+  const [videoCallRatingActive, setVideoCallRatingActive] = useState(false);
+
+  // ================= DATABASE, AUTH, AND STRIPE STATES =================
+  const [user, setUser] = useState({
+    name: "Alex Carter",
+    avatar_url: "/portraits/profile_1.png",
+    archetype: "Midnight Street Food Rebel",
+    saved_spots: ["Loca Luna Sangria", "Ecco Midtown Pasta"],
+    free_meetings_left: 1,
+    is_premium: false,
+    premium_since: null
+  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [stripePaymentAmount, setStripePaymentAmount] = useState(20); // default to $20 Premium subscription, can toggle to $5 single date pass
+  const [stripeTargetMatch, setStripeTargetMatch] = useState(null);
+  const [stripePaymentLoading, setStripePaymentLoading] = useState(false);
+  const [showStripeSuccess, setShowStripeSuccess] = useState(false);
+
+  // Stripe card form input fields
+  const [stripeCardNum, setStripeCardNum] = useState('');
+  const [stripeCardExpiry, setStripeCardExpiry] = useState('');
+  const [stripeCardCvc, setStripeCardCvc] = useState('');
+  const [stripeCardZip, setStripeCardZip] = useState('');
+
+  // ================= SWIPABLE EXPLORE CARDS STATE =================
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [swipeOffsetX, setSwipeOffsetX] = useState(0);
+  const [swipeOffsetY, setSwipeOffsetY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [swipeDirection, setSwipeDirection] = useState(null);
+
+
   // ================= GEOLOCATION & HAVERSINE PROXIMITY =================
   const [userLocation, setUserLocation] = useState(null);
 
@@ -345,102 +443,6 @@ function App() {
     return d.toFixed(1); // One decimal precision e.g. "1.4"
   };
 
-  // ================= CASINO SLOT MACHINE DEAL GRABBER STATES =================
-  const slotEmojis = ['🌮', '🍔', '🍕', '🍹', '🍺', '🍣', '🥗', '🍗', '🍜', '🍤'];
-  
-  const [showSlotModal, setShowSlotModal] = useState(false);
-  const [slotSpinning, setSlotSpinning] = useState(false);
-  const [slotLeverPulled, setSlotLeverPulled] = useState(false);
-  
-  const [reel1, setReel1] = useState('❓');
-  const [reel2, setReel2] = useState('❓');
-  const [reel3, setReel3] = useState('❓');
-  
-  const [slotWinnerDeal, setSlotWinnerDeal] = useState(null);
-  const [slotStatusText, setSlotStatusText] = useState('PULL THE LEVER TO SPIN!');
-  const [slotTickerText, setSlotTickerText] = useState('🎰 READY TO PARSE DAILY SPECIALS ONLINE & OFFLINE... 🎰');
-  const [slotDemoMode, setSlotDemoMode] = useState(true); // default to true so developers/users can test instantly
-  const [dailyLimitReached, setDailyLimitReached] = useState(false);
-
-  // ================= AI MATCHMAKING & CALENDAR DATE UNLOCK STATES =================
-  const [showDateFlow, setShowDateFlow] = useState(false);
-  const [dateRestaurant, setDateRestaurant] = useState(null);
-  
-  // Step workflow tracker: 'intro' | 'quiz' | 'scanning' | 'matches' | 'revealed' | 'chat'
-  const [dateFlowStep, setDateFlowStep] = useState('intro');
-  const [dateQuizQuestionIndex, setDateQuizQuestionIndex] = useState(0);
-  const [dateQuizAnswers, setDateQuizAnswers] = useState({});
-  const [dateMatchedCandidates, setDateMatchedCandidates] = useState([]);
-  const [dateSelectedMatch, setDateSelectedMatch] = useState(null);
-  const [datePickedCalendarDate, setDatePickedCalendarDate] = useState(null);
-  const [dateInviteText, setDateInviteText] = useState('');
-  const [toastMessage, setToastMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState([]);
-  const [isTypingChat, setIsTypingChat] = useState(false);
-  const [matchmakerPreference, setMatchmakerPreference] = useState('M4F');
-  const [datePassAddedToCalendar, setDatePassAddedToCalendar] = useState(false);
-  const [isScanningDates, setIsScanningDates] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [showDesktopPrompt, setShowDesktopPrompt] = useState(false);
-  
-  // ================= VIRAL GROWTH LOOPS STATE =================
-  const [selectedArchetype, setSelectedArchetype] = useState(null);
-  const [showArchetypeModal, setShowArchetypeModal] = useState(false);
-  const [hasVotedDebate, setHasVotedDebate] = useState(false);
-  const [debateVotes, setDebateVotes] = useState({ option1: 184, option2: 67 }); 
-  const [isRegisteredGoldenTicket, setIsRegisteredGoldenTicket] = useState(false);
-  const [showDatePassModal, setShowDatePassModal] = useState(false);
-  const [referralCodeInput, setReferralCodeInput] = useState('');
-  const [referralCodeEntered, setReferralCodeEntered] = useState(false);
-  const [showReferralVoucher, setShowReferralVoucher] = useState(false);
-  const [isGuestJoined, setIsGuestJoined] = useState(false);
-
-  // ================= VIDEO CHAT & DATE APPROVAL STATES =================
-  const [isDateApprovedByBoth, setIsDateApprovedByBoth] = useState(false);
-  const [showVideoPaywall, setShowVideoPaywall] = useState(false);
-  const [isVideoCallConnecting, setIsVideoCallConnecting] = useState(false);
-  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
-  const [videoCallTimer, setVideoCallTimer] = useState(240); // 4 minutes
-  const [videoCallTimerActive, setVideoCallTimerActive] = useState(false);
-  const [videoCallRatingActive, setVideoCallRatingActive] = useState(false);
-
-  // ================= DATABASE, AUTH, AND STRIPE STATES =================
-  const [user, setUser] = useState({
-    name: "Alex Carter",
-    avatar_url: "/portraits/profile_1.png",
-    archetype: "Midnight Street Food Rebel",
-    saved_spots: ["Loca Luna Sangria", "Ecco Midtown Pasta"],
-    free_meetings_left: 1,
-    is_premium: false,
-    premium_since: null
-  });
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-
-  const [showStripeModal, setShowStripeModal] = useState(false);
-  const [stripePaymentAmount, setStripePaymentAmount] = useState(20); // default to $20 Premium subscription, can toggle to $5 single date pass
-  const [stripeTargetMatch, setStripeTargetMatch] = useState(null);
-  const [stripePaymentLoading, setStripePaymentLoading] = useState(false);
-  const [showStripeSuccess, setShowStripeSuccess] = useState(false);
-
-  // Stripe card form input fields
-  const [stripeCardNum, setStripeCardNum] = useState('');
-  const [stripeCardExpiry, setStripeCardExpiry] = useState('');
-  const [stripeCardCvc, setStripeCardCvc] = useState('');
-  const [stripeCardZip, setStripeCardZip] = useState('');
-
-  // ================= SWIPABLE EXPLORE CARDS STATE =================
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [swipeOffsetX, setSwipeOffsetX] = useState(0);
-  const [swipeOffsetY, setSwipeOffsetY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [swipeDirection, setSwipeDirection] = useState(null);
 
   const dateQuestions = [
     {

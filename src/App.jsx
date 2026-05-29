@@ -2527,7 +2527,7 @@ function App() {
                 <div className="px-5 pt-2 pb-3 flex flex-col items-center justify-center relative w-full border-b border-slate-800/40 bg-slate-900/40 backdrop-blur-md">
                   <div className="flex flex-col items-center">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-14 object-contain filter drop-shadow-md" />
-                    <span className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase mt-1.5 block text-center">Local Foodie Directory</span>
+                    <span className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase mt-1.5 block text-center">📝 Atlanta's Local Foodie Directory</span>
                   </div>
                   {/* User Profile Avatar / Login trigger */}
                   <div 
@@ -2972,6 +2972,7 @@ function App() {
                 <div className="px-4 pt-3 pb-2 flex flex-col items-center justify-center relative w-full border-b border-slate-800/40 bg-slate-900/40 backdrop-blur-md shrink-0">
                   <div className="flex flex-col items-center mb-2">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-10 object-contain filter drop-shadow-md" />
+                    <span className="text-[8px] text-indigo-400 font-extrabold tracking-wider uppercase mt-1 block text-center">🍑 Buckhead • Midtown • Inman Park • Atlanta</span>
                   </div>
 
                   {/* Sliding glassmorphic pill toggle */}
@@ -3380,7 +3381,7 @@ function App() {
                 <div className="absolute top-4 left-4 right-4 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl z-20 flex flex-col items-center justify-center shadow-lg">
                   <div className="flex flex-col items-center">
                     <img src="/munchidate_logo.png?v=10" alt="Munchi Date Logo" className="h-12 object-contain filter drop-shadow-md" />
-                    <span className="text-[9px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mt-1.5 text-center">{selectedDay}'s Active Spots Map</span>
+                    <span className="text-[9px] text-indigo-400 font-extrabold uppercase tracking-widest leading-none mt-1.5 text-center">📍 {selectedDay}'s Active Atlanta Spots Map</span>
                   </div>
                   <button 
                     onClick={() => {

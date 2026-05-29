@@ -1,5 +1,5 @@
 // PWA Service Worker for SpecialsApp & MunchiDate
-const CACHE_NAME = 'munchidate-cache-v1';
+const CACHE_NAME = 'munchidate-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -33,33 +33,49 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Cache-falling-back-to-network strategy for asset fetches with robust offline fallback
+// Network-First for Navigation/HTML, Cache-First for static assets, with offline fallbacks
 self.addEventListener('fetch', (event) => {
-  // Only handle standard HTTP/S schemes to avoid chrome-extension issues
   if (!event.request.url.startsWith('http')) return;
   
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+  const isHtmlRequest = event.request.mode === 'navigate' || 
+                        event.request.headers.get('accept')?.includes('text/html') ||
+                        event.request.url.endsWith('.html');
+                        
+  if (isHtmlRequest) {
+    // Network-First strategy: Always check the network for index.html/updates first, fallback to cache if offline
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response.status === 200) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
         return response;
       }).catch(() => {
-        // Return cached index.html for navigation requests so SPA works offline
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html') || caches.match('/');
-        }
-        // Fallback for offline map images or missing static resources
-        return new Response("Offline Content Available", { status: 200, headers: { 'Content-Type': 'text/plain' } });
-      });
-    })
-  );
+        return caches.match(event.request) || caches.match('/index.html') || caches.match('/');
+      })
+    );
+  } else {
+    // Cache-First strategy for static assets (js, css, images, fonts, audio)
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+          return response;
+        }).catch(() => {
+          return new Response("Offline Content Available", { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        });
+      })
+    );
+  }
 });
 
 // PWA Background Sync Event Listener

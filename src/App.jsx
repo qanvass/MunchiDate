@@ -4697,7 +4697,7 @@ function App() {
                               onClick={() => {
                                 playAudioBeep(330, 0.25, 'sawtooth');
                                 setVideoCallTimerActive(false);
-                                isVideoCallActive(false);
+                                setIsVideoCallActive(false);
                                 setVideoCallRatingActive(true);
                               }}
                               className="bg-red-600 hover:bg-red-550 text-white w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-lg shadow-red-600/35 border border-red-500 animate-glow-ring text-[10px]"
